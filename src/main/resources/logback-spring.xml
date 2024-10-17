@@ -4,7 +4,9 @@
 	<springProfile name="preprod,prod">
 
 		<appender name="STDOUT_JSON" class="ch.qos.logback.core.ConsoleAppender">
-			<encoder class="net.logstash.logback.encoder.LogstashEncoder"/>
+			<encoder class="net.logstash.logback.encoder.LogstashEncoder">
+				<includeMdcKeyName>correlation_id</includeMdcKeyName>
+			</encoder>
 		</appender>
 
 		<root level="INFO">

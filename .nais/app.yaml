@@ -15,8 +15,10 @@ spec:
     min: 2
   liveness:
     path: /internal/health/isAlive
+    initialDelay: 30
   readiness:
     path: /internal/health/isReady
+    initialDelay: 30
   prometheus:
     enabled: true
     path: /actuator/prometheus
