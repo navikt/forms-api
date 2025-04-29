@@ -81,7 +81,7 @@ class EditFormTranslationsService(
 		en: String?,
 		userId: String
 	): FormTranslationDto {
-		val form = formRepository.findByPath(formPath) ?: throw ResourceNotFoundException("Form not found", formPath)
+		val form = formRepository.findByPathAndDeletedAtIsNull(formPath) ?: throw ResourceNotFoundException("Form not found", formPath)
 
 		val globalTranslation = globalTranslationId?.let {
 			globalTranslationRepository.findById(it)

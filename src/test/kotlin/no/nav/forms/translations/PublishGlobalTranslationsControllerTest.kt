@@ -4,28 +4,13 @@ import no.nav.forms.ApplicationTest
 import no.nav.forms.model.UpdateGlobalTranslationRequest
 import no.nav.forms.testutils.MOCK_USER_GROUP_ID
 import no.nav.forms.testutils.createMockToken
-import no.nav.forms.translations.testdata.GlobalTranslationsTestdata
 import no.nav.forms.utils.LanguageCode
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertTrue
-import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
-class PublishGlobalTranslationsControllerTest : ApplicationTest() {
-
-	private val translations = GlobalTranslationsTestdata.translations
-
-	@BeforeEach
-	fun createGlobalTranslationsForTest() {
-		val authToken = mockOAuth2Server.createMockToken()
-		translations.values.forEach {
-			val response = testFormsApi.createGlobalTranslation(it, authToken)
-			assertTrue(response.statusCode.is2xxSuccessful)
-		}
-		testFormsApi.publishGlobalTranslations(authToken).assertSuccess()
-	}
+class PublishGlobalTranslationsControllerTest : ApplicationTest(setupPublishedGlobalTranslations = true) {
 
 	@Test
 	fun testPublishInformationWithoutTranslations() {
@@ -50,6 +35,7 @@ class PublishGlobalTranslationsControllerTest : ApplicationTest() {
 		assertNotNull(translationsInResponse["nn"])
 		assertNull(translationsInResponse["nb"])
 
+		val translations = getPublishedGlobalTranslations()
 		val tFornavn = translations.values.find { it.key == "Fornavn" }!!
 		val tRequired = translations.values.find { it.key == "required" }!!
 
@@ -74,6 +60,7 @@ class PublishGlobalTranslationsControllerTest : ApplicationTest() {
 
 	@Test
 	fun testPublish() {
+		val translations = getPublishedGlobalTranslations()
 		val tFornavn = translations.values.find { it.key == "Fornavn" }!!
 		val tRequired = translations.values.find { it.key == "required" }!!
 
@@ -115,7 +102,7 @@ class PublishGlobalTranslationsControllerTest : ApplicationTest() {
 		val authToken = mockOAuth2Server.createMockToken()
 		val globalTranslations = testFormsApi.getGlobalTranslations().body
 		val tFornavn = globalTranslations.find { it.key == "Fornavn" }!!
-		val tRequired = translations.values.find { it.key == "required" }!!
+		val tRequired = getPublishedGlobalTranslations().values.find { it.key == "required" }!!
 
 		val updatedEnTranslation = "${tFornavn.en}postfix"
 		testFormsApi.putGlobalTranslation(

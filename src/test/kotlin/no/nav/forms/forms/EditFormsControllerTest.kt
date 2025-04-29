@@ -5,15 +5,17 @@ import no.nav.forms.model.FormCompactDto
 import no.nav.forms.model.LockFormRequest
 import no.nav.forms.testutils.createMockToken
 import no.nav.forms.testutils.FormsTestdata
+import no.nav.forms.testutils.MOCK_USER_GROUP_ID
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpStatus
 import kotlin.reflect.full.memberProperties
-import kotlin.test.assertNotEquals
 
-class EditFormsControllerTest : ApplicationTest() {
+class EditFormsControllerTest : ApplicationTest(setupPublishedGlobalTranslations = true) {
 
 	@Test
 	fun testCreateForm() {
@@ -52,6 +54,18 @@ class EditFormsControllerTest : ApplicationTest() {
 		testFormsApi.createForm(FormsTestdata.newFormRequest(skjemanummer = "TST123"), authToken)
 			.assertSuccess()
 		testFormsApi.createForm(FormsTestdata.newFormRequest(skjemanummer = "TST123"), authToken)
+			.assertHttpStatus(HttpStatus.CONFLICT)
+	}
+
+	@Test
+	fun testCreateFormWithSkjemanummerOfDeletedForm() {
+		val authToken = mockOAuth2Server.createMockToken()
+		val skjemanummer = "TST123"
+		val newForm = testFormsApi.createForm(FormsTestdata.newFormRequest(skjemanummer = skjemanummer), authToken)
+			.assertSuccess()
+			.body
+		testFormsApi.deleteForm(newForm.path!!, newForm.revision!!, authToken).assertSuccess()
+		testFormsApi.createForm(FormsTestdata.newFormRequest(skjemanummer = skjemanummer), authToken)
 			.assertHttpStatus(HttpStatus.CONFLICT)
 	}
 
@@ -173,6 +187,29 @@ class EditFormsControllerTest : ApplicationTest() {
 	}
 
 	@Test
+	fun testUpdateOfDeletedForm() {
+		val createRequest = FormsTestdata.newFormRequest()
+		val authToken = mockOAuth2Server.createMockToken()
+		val form = testFormsApi.createForm(createRequest, authToken)
+			.assertSuccess()
+			.body
+
+		testFormsApi.deleteForm(form.path!!, form.revision!!, authToken)
+			.assertHttpStatus(HttpStatus.NO_CONTENT)
+
+		val updateRequest = FormsTestdata.updateFormRequest(
+			title = null,
+			components = null,
+			properties = mapOf("tema" to "AAP")
+		)
+		testFormsApi.updateForm(form.path!!, form.revision!!, updateRequest, authToken)
+			.assertHttpStatus(HttpStatus.NOT_FOUND)
+			.errorBody.let {
+				assertEquals("Form not found", it.errorMessage)
+			}
+	}
+
+	@Test
 	fun testGetForm() {
 		val authToken = mockOAuth2Server.createMockToken()
 		val createRequest = FormsTestdata.newFormRequest()
@@ -226,13 +263,13 @@ class EditFormsControllerTest : ApplicationTest() {
 
 		val select1 = "properties"
 		assertPrecenceOfProps(
-			testFormsApi.getForms(select1).assertSuccess().body.first(),
+			testFormsApi.getForms(select1,).assertSuccess().body.first(),
 			select1.split(",")
 		)
 
 		val select2 = "title,skjemanummer,changedAt"
 		assertPrecenceOfProps(
-			testFormsApi.getForms(select2).assertSuccess().body.first(),
+			testFormsApi.getForms(select2,).assertSuccess().body.first(),
 			select2.split(",")
 		)
 	}
@@ -263,7 +300,7 @@ class EditFormsControllerTest : ApplicationTest() {
 				assertNotEquals(newTitle, it.title)
 			}
 
-		testFormsApi.getForms("title,lock")
+		testFormsApi.getForms("title,lock",)
 			.assertSuccess().body.let {
 				assertEquals(1, it.size)
 				assertNotEquals(newTitle, it[0].title)
@@ -283,6 +320,141 @@ class EditFormsControllerTest : ApplicationTest() {
 		testFormsApi.getForm(formPath)
 			.assertSuccess().body.let {
 				assertEquals(newTitle, it.title)
+			}
+	}
+
+	@Test
+	fun testDeleteFormWithoutAuthToken() {
+		val formPath = "nav123456"
+		val errorBody = testFormsApi.deleteForm(formPath, 1, authToken = null)
+			.assertHttpStatus(HttpStatus.UNAUTHORIZED)
+			.errorBody
+		assertEquals("Unauthorized", errorBody.errorMessage )
+	}
+
+	@Test
+	fun testDeleteFormWithTokenWithNoAdminUser() {
+		val authToken = mockOAuth2Server.createMockToken(groups = listOf(MOCK_USER_GROUP_ID))
+		val formPath = "nav123456"
+		val errorBody = testFormsApi.deleteForm(formPath, 1, authToken)
+			.assertHttpStatus(HttpStatus.FORBIDDEN)
+			.errorBody
+		assertEquals("Forbidden", errorBody.errorMessage)
+	}
+
+	@Test
+	fun testDeleteFormThatDoNotExist() {
+		val authToken = mockOAuth2Server.createMockToken()
+		val formPath = "nav123456"
+		testFormsApi.deleteForm(formPath, 1, authToken)
+			.assertHttpStatus(HttpStatus.NOT_FOUND)
+			.errorBody.let {
+				assertEquals("Form not found", it.errorMessage)
+			}
+	}
+
+	@Test
+	fun testDeleteForm() {
+		val userName = "Testy Testesen"
+		val authToken = mockOAuth2Server.createMockToken(userName = userName)
+		val formPath = "nav123456"
+		testFormsApi.createForm(FormsTestdata.newFormRequest(skjemanummer = formPath), authToken)
+			.assertSuccess()
+		testFormsApi.deleteForm(formPath, 1, authToken)
+			.assertHttpStatus(HttpStatus.NO_CONTENT)
+		testFormsApi.getForms("path,deletedAt,deletedBy")
+			.assertSuccess().body.let {
+				assertEquals(0, it.size)
+			}
+		testFormsApi.getForms("path,deletedAt,deletedBy", includeDeleted = true)
+			.assertSuccess().body.let {
+				assertEquals(1, it.size)
+				assertNotNull(it[0].deletedAt)
+				assertEquals(userName, it[0].deletedBy)
+			}
+		testFormsApi.getForm(formPath)
+			.assertHttpStatus(HttpStatus.NOT_FOUND)
+			.errorBody.let {
+				assertEquals("Form not found", it.errorMessage)
+			}
+		testFormsApi.getForm(formPath, includeDeleted = true)
+			.assertSuccess()
+			.body.let {
+				assertNotNull(it.deletedAt)
+				assertEquals(userName, it.deletedBy)
+			}
+	}
+
+	@Test
+	fun testDeleteFormWithWrongRevision() {
+		val authToken = mockOAuth2Server.createMockToken()
+		val formPath = "nav123456"
+		val firstRevisionOfForm = testFormsApi.createForm(FormsTestdata.newFormRequest(skjemanummer = formPath), authToken)
+			.assertSuccess()
+			.body
+		testFormsApi.updateForm(formPath, 1, FormsTestdata.updateFormRequest(title = "New title"), authToken)
+			.assertSuccess()
+		testFormsApi.deleteForm(formPath, firstRevisionOfForm.revision!!, authToken)
+			.assertHttpStatus(HttpStatus.CONFLICT)
+			.errorBody.let {
+				assertEquals("Conflict", it.errorMessage)
+			}
+	}
+
+	@Test
+	fun failsOnSecondDelete() {
+		val authToken = mockOAuth2Server.createMockToken()
+		val formPath = "nav123456"
+		testFormsApi.createForm(FormsTestdata.newFormRequest(skjemanummer = formPath), authToken)
+			.assertSuccess()
+		testFormsApi.deleteForm(formPath, 1, authToken)
+			.assertHttpStatus(HttpStatus.NO_CONTENT)
+		testFormsApi.deleteForm(formPath, 1, authToken)
+			.assertHttpStatus(HttpStatus.NOT_FOUND)
+			.errorBody.let {
+				assertEquals("Form not found", it.errorMessage)
+			}
+	}
+
+	@Test
+	fun testDeleteFormWithoutRevision() {
+		val authToken = mockOAuth2Server.createMockToken()
+		val formPath = "nav123456"
+		testFormsApi.createForm(FormsTestdata.newFormRequest(skjemanummer = formPath), authToken)
+			.assertSuccess()
+		testFormsApi.deleteForm(formPath, formRevision = null, authToken)
+			.assertHttpStatus(HttpStatus.BAD_REQUEST)
+			.errorBody.let {
+				assertTrue(it.errorMessage.matches(Regex("Required request header .* is not present")))
+			}
+	}
+
+	@Test
+	fun shouldFailToDeleteFormWhenItHasBeenPublished() {
+		val authToken = mockOAuth2Server.createMockToken()
+		val formPath = "nav123456"
+		val newForm = testFormsApi.createForm(FormsTestdata.newFormRequest(skjemanummer = formPath), authToken)
+			.assertSuccess()
+			.body
+		testFormsApi.getForm(formPath).assertSuccess()
+		val formRevision = newForm.revision!!
+
+		// verify published form
+		testFormsApi.publishForm(formPath, formRevision, authToken)
+			.assertSuccess()
+		testFormsApi.deleteForm(formPath, formRevision, authToken)
+			.assertHttpStatus(HttpStatus.CONFLICT)
+			.errorBody.let {
+				assertEquals("Conflict", it.errorMessage)
+			}
+
+		// verify unpublished form
+		testFormsApi.unpublishForm(formPath, authToken)
+			.assertSuccess()
+		testFormsApi.deleteForm(formPath, formRevision, authToken)
+			.assertHttpStatus(HttpStatus.CONFLICT)
+			.errorBody.let {
+				assertEquals("Conflict", it.errorMessage)
 			}
 	}
 

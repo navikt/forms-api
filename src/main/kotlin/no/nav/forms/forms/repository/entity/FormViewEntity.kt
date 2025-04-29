@@ -47,6 +47,17 @@ class FormViewEntity(
 	@Column(name = "changed_by", columnDefinition = "varchar", nullable = false, updatable = false)
 	val changedBy: String,
 
+	@Column(
+		name = "deleted_at",
+		columnDefinition = "TIMESTAMP WITH TIME ZONE",
+		nullable = true,
+		updatable = false
+	)
+	val deletedAt: LocalDateTime? = null,
+
+	@Column(name = "deleted_by", columnDefinition = "varchar", nullable = true, updatable = false)
+	val deletedBy: String? = null,
+
 	@Convert(converter = DbJsonObjectConverter::class)
 	@JdbcTypeCode(SqlTypes.JSON)
 	@Column(name = "properties", columnDefinition = "jsonb", nullable = true, updatable = false)

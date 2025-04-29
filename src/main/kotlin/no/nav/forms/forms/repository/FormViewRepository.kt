@@ -10,4 +10,10 @@ interface FormViewRepository: ViewRepository<FormViewEntity, Long> {
 
 	fun findAllByPublicationStatusEquals(publicationStatus: FormPublicationStatusDb): List<FormViewEntity>
 
+	fun findByPath(path: String): FormViewEntity?
+
+	fun findByPathAndDeletedAtIsNull(path: String): FormViewEntity?
+
+	fun findAllByDeletedAtIsNull(): List<FormViewEntity>
+
 }

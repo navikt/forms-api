@@ -35,8 +35,8 @@ class EditFormsController(
 	}
 
 	@Unprotected
-	override fun getForm(formPath: String): ResponseEntity<FormDto> {
-		val form = editFormsService.getForm(formPath)
+	override fun getForm(formPath: String, includeDeleted: Boolean): ResponseEntity<FormDto> {
+		val form = editFormsService.getForm(formPath, includeDeleted)
 		return ResponseEntity.ok(form)
 	}
 
@@ -59,12 +59,12 @@ class EditFormsController(
 	}
 
 	@Unprotected
-	override fun getForms(select: String?): ResponseEntity<List<FormCompactDto>> {
+	override fun getForms(select: String?, includeDeleted: Boolean): ResponseEntity<List<FormCompactDto>> {
 		val selectList = when {
 			select?.isNotEmpty() == true -> select.split(",")
 			else -> null
 		}
-		val forms = editFormsService.getForms(selectList)
+		val forms = editFormsService.getForms(selectList, includeDeleted)
 		return ResponseEntity.ok(forms)
 	}
 
@@ -84,6 +84,13 @@ class EditFormsController(
 		val userId = securityContextHolder.getUserName()
 		val form = editFormsService.unlockForm(formPath, userId)
 		return ResponseEntity.ok(form)
+	}
+
+	override fun deleteForm(formPath: String, formsapiEntityRevision: Int): ResponseEntity<FormDto> {
+		securityContextHolder.requireAdminUser()
+		val userId = securityContextHolder.getUserName()
+		editFormsService.deleteForm(formPath, formsapiEntityRevision, userId)
+		return ResponseEntity.status(HttpStatus.NO_CONTENT).build()
 	}
 
 }
