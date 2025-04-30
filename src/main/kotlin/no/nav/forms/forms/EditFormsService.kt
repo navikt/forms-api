@@ -175,6 +175,6 @@ class EditFormsService(
 		if (form.revision != revision) {
 			throw InvalidRevisionException("Unexpected form revision: $revision")
 		}
-		formRepository.setDeletedAtAndDeletedByWherePath(LocalDateTime.now(), userId, formPath)
+		formRepository.deleteForm(LocalDateTime.now(), userId, formPath)
 	}
 }

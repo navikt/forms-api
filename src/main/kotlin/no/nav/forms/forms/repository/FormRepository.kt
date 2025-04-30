@@ -26,6 +26,6 @@ interface FormRepository: JpaRepository<FormEntity, Long> {
 
 	@Modifying
 	@Query("update FormEntity f set f.deletedAt = ?1, f.deletedBy = ?2 where f.path = ?3")
-	fun setDeletedAtAndDeletedByWherePath(deletedAt: LocalDateTime, deletedBy: String, path: String)
+	fun deleteForm(deletedAt: LocalDateTime, deletedBy: String, path: String)
 
 }
