@@ -264,13 +264,13 @@ class EditFormsControllerTest : ApplicationTest(setupPublishedGlobalTranslations
 
 		val select1 = "properties"
 		assertPrecenceOfProps(
-			testFormsApi.getForms(select1,).assertSuccess().body.first(),
+			testFormsApi.getForms(select1).assertSuccess().body.first(),
 			select1.split(",")
 		)
 
 		val select2 = "title,skjemanummer,changedAt"
 		assertPrecenceOfProps(
-			testFormsApi.getForms(select2,).assertSuccess().body.first(),
+			testFormsApi.getForms(select2).assertSuccess().body.first(),
 			select2.split(",")
 		)
 	}
@@ -301,7 +301,7 @@ class EditFormsControllerTest : ApplicationTest(setupPublishedGlobalTranslations
 				assertNotEquals(newTitle, it.title)
 			}
 
-		testFormsApi.getForms("title,lock",)
+		testFormsApi.getForms("title,lock")
 			.assertSuccess().body.let {
 				assertEquals(1, it.size)
 				assertNotEquals(newTitle, it[0].title)
