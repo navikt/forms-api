@@ -1,6 +1,7 @@
 package no.nav.forms.forms
 
 import no.nav.forms.ApplicationTest
+import no.nav.forms.exceptions.db.DbError
 import no.nav.forms.model.FormCompactDto
 import no.nav.forms.model.LockFormRequest
 import no.nav.forms.testutils.createMockToken
@@ -445,7 +446,7 @@ class EditFormsControllerTest : ApplicationTest(setupPublishedGlobalTranslations
 		testFormsApi.deleteForm(formPath, formRevision, authToken)
 			.assertHttpStatus(HttpStatus.CONFLICT)
 			.errorBody.let {
-				assertEquals("Conflict", it.errorMessage)
+				assertEquals(DbError.FORMSAPI_002.message, it.errorMessage)
 			}
 
 		// verify unpublished form
@@ -454,7 +455,7 @@ class EditFormsControllerTest : ApplicationTest(setupPublishedGlobalTranslations
 		testFormsApi.deleteForm(formPath, formRevision, authToken)
 			.assertHttpStatus(HttpStatus.CONFLICT)
 			.errorBody.let {
-				assertEquals("Conflict", it.errorMessage)
+				assertEquals(DbError.FORMSAPI_002.message, it.errorMessage)
 			}
 	}
 

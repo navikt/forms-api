@@ -3,7 +3,6 @@ package no.nav.forms.forms
 import com.fasterxml.jackson.databind.ObjectMapper
 import jakarta.persistence.EntityManager
 import jakarta.transaction.Transactional
-import no.nav.forms.exceptions.ConflictException
 import no.nav.forms.exceptions.DuplicateResourceException
 import no.nav.forms.exceptions.InvalidRevisionException
 import no.nav.forms.exceptions.LockedResourceException
@@ -175,9 +174,6 @@ class EditFormsService(
 			?: throw ResourceNotFoundException("Form not found", formPath)
 		if (form.revision != revision) {
 			throw InvalidRevisionException("Unexpected form revision: $revision")
-		}
-		if (form.publishedRevisionId != null) {
-			throw ConflictException("Form have been published and cannot be deleted")
 		}
 		formRepository.setDeletedAtAndDeletedByWherePath(LocalDateTime.now(), userId, formPath)
 	}
