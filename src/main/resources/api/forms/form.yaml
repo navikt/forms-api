@@ -97,12 +97,8 @@ delete:
       schema:
         $ref: "./components.yaml#/components/schemas/FormRevision"
   responses:
-      200:
-        description: Returnerer skjemadefinisjonen
-        content:
-          application/json:
-            schema:
-              $ref: "./components.yaml#/components/schemas/FormDto"
+      204:
+        description: Skjemaet er slettet
       404:
         description: Finner ikke skjema med gitt id
         content:
