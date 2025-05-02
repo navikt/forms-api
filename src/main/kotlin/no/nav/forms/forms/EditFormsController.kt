@@ -86,7 +86,7 @@ class EditFormsController(
 		return ResponseEntity.ok(form)
 	}
 
-	override fun deleteForm(formPath: String, formsapiEntityRevision: Int): ResponseEntity<FormDto> {
+	override fun deleteForm(formPath: String, formsapiEntityRevision: Int): ResponseEntity<Unit> {
 		securityContextHolder.requireAdminUser()
 		val userId = securityContextHolder.getUserName()
 		editFormsService.deleteForm(formPath, formsapiEntityRevision, userId)
