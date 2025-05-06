@@ -56,6 +56,8 @@ class EditFormsControllerTest : ApplicationTest(setupPublishedGlobalTranslations
 			.assertSuccess()
 		testFormsApi.createForm(FormsTestdata.newFormRequest(skjemanummer = "TST123"), authToken)
 			.assertHttpStatus(HttpStatus.CONFLICT)
+		testFormsApi.createForm(FormsTestdata.newFormRequest(skjemanummer = "TST 123"), authToken)
+			.assertHttpStatus(HttpStatus.CONFLICT)
 	}
 
 	@Test

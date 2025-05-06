@@ -48,14 +48,15 @@ class EditFormsService(
 		properties: Map<String, Any>,
 		userId: String,
 	): FormDto {
-		if (formRepository.existsBySkjemanummer(skjemanummer)) {
+		val formPath = skjemanummer.toFormPath()
+		if (formRepository.existsByPath(formPath)) {
 			throw DuplicateResourceException("Form $skjemanummer already exists", skjemanummer)
 		}
 		val now = LocalDateTime.now()
 		val form = formRepository.save(
 			FormEntity(
 				skjemanummer = skjemanummer,
-				path = skjemanummer.toFormPath(),
+				path = formPath,
 				createdAt = now,
 				createdBy = userId,
 			)
