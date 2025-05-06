@@ -5,7 +5,6 @@ import no.nav.forms.exceptions.db.DbError
 import no.nav.forms.model.*
 import no.nav.forms.testutils.createMockToken
 import no.nav.forms.testutils.FormsTestdata
-import no.nav.forms.translations.testdata.GlobalTranslationsTestdata
 import no.nav.forms.utils.LanguageCode
 import no.nav.forms.utils.Skjemanummer
 import no.nav.forms.utils.toFormPath
@@ -14,7 +13,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpStatus
 
-class EditFormTranslationsControllerTest : ApplicationTest() {
+class EditFormTranslationsControllerTest : ApplicationTest(setupPublishedGlobalTranslations = true) {
 
 	val skjemanummer: Skjemanummer = "NAV 12-34.56"
 	val formPath = skjemanummer.toFormPath()
@@ -27,12 +26,6 @@ class EditFormTranslationsControllerTest : ApplicationTest() {
 		val newFormRequest = FormsTestdata.newFormRequest(skjemanummer = skjemanummer)
 		testFormsApi.createForm(newFormRequest, authToken)
 			.assertSuccess()
-
-		// Create and publish global translations
-		GlobalTranslationsTestdata.translations.values.forEach {
-			testFormsApi.createGlobalTranslation(it, authToken).assertSuccess()
-		}
-		testFormsApi.publishGlobalTranslations(authToken).assertSuccess()
 	}
 
 	@Test
@@ -86,6 +79,20 @@ class EditFormTranslationsControllerTest : ApplicationTest() {
 
 		testFormsApi.createFormTranslation(formPath, createRequest, authToken)
 			.assertHttpStatus(HttpStatus.CONFLICT)
+	}
+
+	@Test
+	fun failsOnCreateWhenFormIsDeleted() {
+		val authToken = mockOAuth2Server.createMockToken()
+
+		val createRequest = NewFormTranslationRequestDto(
+			key = "Tester",
+			nb = "Tester",
+		)
+		testFormsApi.deleteForm(formPath, 1, authToken).assertSuccess()
+
+		testFormsApi.createFormTranslation(formPath, createRequest, authToken)
+			.assertHttpStatus(HttpStatus.NOT_FOUND)
 	}
 
 	@Test

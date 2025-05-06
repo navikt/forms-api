@@ -43,6 +43,13 @@ get:
       required: false
       schema:
         type: string
+    - name: includeDeleted
+      in: query
+      description: Om skjemaene som er slettet også skal inkluderes. Standardverdi er false.
+      required: false
+      schema:
+        type: boolean
+        default: false
   responses:
     200:
       description: En liste med skjemadefinisjoner

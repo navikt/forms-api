@@ -5,24 +5,13 @@ import no.nav.forms.model.FormStatus
 import no.nav.forms.model.NewFormTranslationRequestDto
 import no.nav.forms.testutils.FormsTestdata
 import no.nav.forms.testutils.createMockToken
-import no.nav.forms.translations.testdata.GlobalTranslationsTestdata
 import no.nav.forms.utils.LanguageCode
 import org.junit.jupiter.api.Assertions.*
-import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpStatus
 import kotlin.test.assertFalse
 
-class FormPublicationsControllerTest : ApplicationTest() {
-
-	@BeforeEach
-	fun createGlobalTranslationsForTest() {
-		val authToken = mockOAuth2Server.createMockToken()
-		GlobalTranslationsTestdata.translations.values.forEach {
-			testFormsApi.createGlobalTranslation(it, authToken).assertSuccess()
-		}
-		testFormsApi.publishGlobalTranslations(authToken).assertSuccess()
-	}
+class FormPublicationsControllerTest : ApplicationTest(setupPublishedGlobalTranslations = true) {
 
 	@Test
 	fun testPublishForm() {
@@ -357,6 +346,44 @@ class FormPublicationsControllerTest : ApplicationTest() {
 	}
 
 	@Test
+	fun testPublishFormWhenDeleted() {
+		val authToken = mockOAuth2Server.createMockToken()
+		val createRequest = FormsTestdata.newFormRequest()
+		val newForm = testFormsApi.createForm(createRequest, authToken)
+			.assertSuccess()
+			.body
+		val formPath = newForm.path!!
+
+		testFormsApi.deleteForm(formPath, newForm.revision!!, authToken)
+			.assertSuccess()
+
+		val errorBody = testFormsApi.publishForm(formPath, newForm.revision!!, authToken)
+			.assertHttpStatus(HttpStatus.NOT_FOUND)
+			.errorBody
+
+		assertEquals("Form not found", errorBody.errorMessage)
+	}
+
+	@Test
+	fun testGetPublishedFormWhenDeleted() {
+		val authToken = mockOAuth2Server.createMockToken()
+		val createRequest = FormsTestdata.newFormRequest()
+		val newForm = testFormsApi.createForm(createRequest, authToken)
+			.assertSuccess()
+			.body
+		val formPath = newForm.path!!
+
+		testFormsApi.deleteForm(formPath, newForm.revision!!, authToken)
+			.assertSuccess()
+
+		val errorBody = testFormsApi.getPublishedForm(formPath)
+			.assertHttpStatus(HttpStatus.NOT_FOUND)
+			.errorBody
+
+		assertEquals("Form not found", errorBody.errorMessage)
+	}
+
+	@Test
 	fun testGetPublishedFormWithInvalidPath() {
 		val invalidFormPath = "invalidpath"
 
@@ -374,10 +401,10 @@ class FormPublicationsControllerTest : ApplicationTest() {
 		val formRevision = 1
 
 		val errorBody = testFormsApi.publishForm(invalidFormPath, formRevision, authToken)
-			.assertHttpStatus(HttpStatus.BAD_REQUEST)
+			.assertHttpStatus(HttpStatus.NOT_FOUND)
 			.errorBody
 
-		assertEquals("Invalid form path: $invalidFormPath", errorBody.errorMessage)
+		assertEquals("Form not found", errorBody.errorMessage)
 	}
 
 	@Test

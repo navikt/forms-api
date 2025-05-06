@@ -44,6 +44,8 @@ fun FormRevisionEntity.toDto(select: List<String>? = null): FormDto {
 			latestPublication.languages,
 			typeRefPublishedLanguages
 		) else null,
+		deletedAt = if (include("deletedAt") && this.form.deletedAt != null) mapDateTime(this.form.deletedAt as LocalDateTime) else null,
+		deletedBy = if (include("deletedBy")) this.form.deletedBy else null,
 		status = if (include("status")) status else null,
 		lock = if (include("lock")) this.form.lock?.toFormLockDto() else null,
 	)
@@ -83,6 +85,8 @@ fun FormViewEntity.toFormCompactDto(select: List<String>? = null): FormCompactDt
 		changedBy = if (include("changedBy")) this.changedBy else null,
 		publishedAt = if (include("publishedAt") && this.publishedAt != null) mapDateTime(this.publishedAt as LocalDateTime) else null,
 		publishedBy = if (include("publishedBy")) this.publishedBy else null,
+		deletedAt = if (include("deletedAt") && this.deletedAt != null) mapDateTime(this.deletedAt as LocalDateTime) else null,
+		deletedBy = if (include("deletedBy")) this.deletedBy else null,
 		status = if (include("status")) status else null,
 		lock = if (include("lock")) this.lock?.toFormLockDto() else null,
 	)

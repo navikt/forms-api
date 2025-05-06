@@ -9,6 +9,13 @@ get:
       required: true
       schema:
         $ref: "./components.yaml#/components/schemas/FormPath"
+    - name: includeDeleted
+      in: query
+      description: Returner skjema også dersom det er slettet. Standardverdi er false.
+      required: false
+      schema:
+        type: boolean
+        default: false
   responses:
     200:
       description: Returnerer skjemadefinisjonen
@@ -68,5 +75,41 @@ put:
         application/json:
           schema:
             $ref: "../common/components.yaml#/components/schemas/ErrorResponseDto"
+  tags:
+    - edit-forms
+
+delete:
+  summary: Slettemerker skjema
+  operationId: deleteForm
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: formPath
+      in: path
+      description: Skjemaets path
+      required: true
+      schema:
+        $ref: "./components.yaml#/components/schemas/FormPath"
+    - name: Formsapi-Entity-Revision
+      in: header
+      description: Gjeldende revisjon. Hvis det finnes nyere revisjoner, vil slettingen feile.
+      required: true
+      schema:
+        $ref: "./components.yaml#/components/schemas/FormRevision"
+  responses:
+      204:
+        description: Skjemaet er slettet
+      404:
+        description: Finner ikke skjema med gitt id
+        content:
+          application/json:
+            schema:
+              $ref: "../common/components.yaml#/components/schemas/ErrorResponseDto"
+      409:
+        description: Feiler dersom skjemaet er låst, eller hvis man oppgir en revisjon som ikke er den nyeste
+        content:
+          application/json:
+            schema:
+              $ref: "../common/components.yaml#/components/schemas/ErrorResponseDto"
   tags:
     - edit-forms

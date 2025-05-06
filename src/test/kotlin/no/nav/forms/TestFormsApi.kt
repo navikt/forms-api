@@ -306,9 +306,10 @@ class TestFormsApi(
 		return FormsApiResponse(response.statusCode, body)
 	}
 
-	fun getForm(formPath: String): FormsApiResponse<FormDto> {
+	fun getForm(formPath: String, includeDeleted: Boolean? = false): FormsApiResponse<FormDto> {
+		val queryString = if (includeDeleted == true) "?includeDeleted=true" else ""
 		val response = restTemplate.exchange(
-			"$formsBaseUrl/$formPath",
+			"$formsBaseUrl/$formPath$queryString",
 			HttpMethod.GET,
 			HttpEntity(null, httpHeaders(null)),
 			String::class.java
@@ -317,11 +318,29 @@ class TestFormsApi(
 		return FormsApiResponse(response.statusCode, body)
 	}
 
-	fun getForms(select: String? = ""): FormsApiResponse<List<FormCompactDto>> {
-		val queryString = when {
-			select?.isNotEmpty() == true -> "?select=${select}"
-			else -> ""
+	fun deleteForm(formPath: String, formRevision: Int? = null, authToken: String?): FormsApiResponse<Unit> {
+		val headers = when {
+			formRevision !== null -> mapOf(formsapiEntityRevisionHeaderName to formRevision.toString())
+			else -> emptyMap()
 		}
+		val response = restTemplate.exchange(
+			"$formsBaseUrl/$formPath",
+			HttpMethod.DELETE,
+			HttpEntity(null, httpHeaders(authToken, headers)),
+			String::class.java
+		)
+		val body = when {
+			response.statusCode.is2xxSuccessful -> Pair(null, null)
+			else -> Pair(null, readErrorBody(response))
+		}
+		return FormsApiResponse(response.statusCode, body)
+	}
+
+	fun getForms(select: String? = "", includeDeleted: Boolean? = false): FormsApiResponse<List<FormCompactDto>> {
+	val queryString = buildString {
+	    if (!select.isNullOrEmpty()) append("?select=$select")
+	    if (includeDeleted == true) append("${if (isNotEmpty()) "&" else "?"}includeDeleted=true")
+	}
 		val responseType = object : ParameterizedTypeReference<List<FormCompactDto>>() {}
 		val response = restTemplate.exchange("$formsBaseUrl${queryString}", HttpMethod.GET, null, responseType)
 		return FormsApiResponse(response.statusCode, Pair(response.body!!, null))

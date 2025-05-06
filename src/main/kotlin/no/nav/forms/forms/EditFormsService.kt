@@ -82,8 +82,11 @@ class EditFormsService(
 	}
 
 	@Transactional(Transactional.TxType.SUPPORTS)
-	fun getForm(formPath: String): FormDto {
-		val form = formRepository.findByPath(formPath) ?: throw ResourceNotFoundException("Form not found", formPath)
+	fun getForm(formPath: String, includeDeleted: Boolean): FormDto {
+		val form = when {
+			includeDeleted -> formRepository.findByPath(formPath)
+			else -> formRepository.findByPathAndDeletedAtIsNull(formPath)
+		} ?: throw ResourceNotFoundException("Form not found", formPath)
 		val latestRevision = form.revisions.last()
 		val componentsEntity = formRevisionComponentsRepository.findById(latestRevision.componentsId)
 			.getOrElse { throw IllegalStateException("Failed to load components for latest form revision (${formPath})") }
@@ -99,7 +102,7 @@ class EditFormsService(
 		properties: Map<String, Any>? = null,
 		userId: String
 	): FormDto {
-		val form = formRepository.findByPath(formPath).also {
+		val form = formRepository.findByPathAndDeletedAtIsNull(formPath).also {
 			if (it?.lock != null) {
 				throw LockedResourceException("Form ${it.skjemanummer} is locked: ${it.lock?.reason}")
 			}
@@ -131,13 +134,17 @@ class EditFormsService(
 	}
 
 	@Transactional(Transactional.TxType.SUPPORTS)
-	fun getForms(listOfProperties: List<String>? = null): List<FormCompactDto> {
-		return formViewRepository.findAll().map { it.toFormCompactDto(listOfProperties) }
+	fun getForms(listOfProperties: List<String>? = null, includeDeleted: Boolean): List<FormCompactDto> {
+		val forms = when {
+			includeDeleted -> formViewRepository.findAll()
+			else -> formViewRepository.findAllByDeletedAtIsNull()
+		}
+		return forms.map { it.toFormCompactDto(listOfProperties) }
 	}
 
 	@Transactional
 	fun lockForm(formPath: String, lockReason: String, userId: String): FormDto {
-		val form = formRepository.findByPath(formPath) ?: throw ResourceNotFoundException("Form not found", formPath)
+		val form = formRepository.findByPathAndDeletedAtIsNull(formPath) ?: throw ResourceNotFoundException("Form not found", formPath)
 		formRepository.setLockOnForm(FormLockDb(OffsetDateTime.now(), userId, lockReason), form.id!!)
 		entityManager.refresh(form)
 		logger.info("Form ${form.skjemanummer} ($formPath) locked by $userId")
@@ -150,7 +157,7 @@ class EditFormsService(
 
 	@Transactional
 	fun unlockForm(formPath: String, userId: String): FormDto {
-		val form = formRepository.findByPath(formPath) ?: throw ResourceNotFoundException("Form not found", formPath)
+		val form = formRepository.findByPathAndDeletedAtIsNull(formPath) ?: throw ResourceNotFoundException("Form not found", formPath)
 		formRepository.setLockOnForm(null, form.id!!)
 		entityManager.refresh(form)
 		logger.info("Form ${form.skjemanummer} ($formPath) unlocked by $userId")
@@ -159,5 +166,15 @@ class EditFormsService(
 		val componentsEntity = formRevisionComponentsRepository.findById(latestRevision.componentsId)
 			.getOrElse { throw IllegalStateException("Failed to load components for latest form revision (${formPath})") }
 		return latestRevision.toDto().withComponents(componentsEntity)
+	}
+
+	@Transactional
+	fun deleteForm(formPath: String, revision: Int, userId: String) {
+		val form = formViewRepository.findByPathAndDeletedAtIsNull(formPath)
+			?: throw ResourceNotFoundException("Form not found", formPath)
+		if (form.revision != revision) {
+			throw InvalidRevisionException("Unexpected form revision: $revision")
+		}
+		formRepository.deleteForm(LocalDateTime.now(), userId, formPath)
 	}
 }

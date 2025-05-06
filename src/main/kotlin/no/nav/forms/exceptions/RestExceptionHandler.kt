@@ -15,6 +15,7 @@ import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.orm.jpa.JpaSystemException
+import org.springframework.web.bind.MissingRequestHeaderException
 import org.springframework.web.bind.annotation.ControllerAdvice
 import org.springframework.web.bind.annotation.ExceptionHandler
 
@@ -77,6 +78,13 @@ class RestExceptionHandler {
 		val errorMessage = dbError?.message ?: exception.message ?: status.reasonPhrase
 		logger.info(errorMessage, exception)
 		return ResponseEntity.status(status).body(ErrorResponseDto(errorMessage, getCorrelationId()))
+	}
+
+	@ExceptionHandler
+	fun handleMissingRequestHeaderException(exception: MissingRequestHeaderException): ResponseEntity<ErrorResponseDto> {
+		val status = HttpStatus.BAD_REQUEST
+		logger.info(exception.message, exception)
+		return ResponseEntity.status(status).body(ErrorResponseDto(exception.message, getCorrelationId()))
 	}
 
 	@ExceptionHandler

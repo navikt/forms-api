@@ -151,6 +151,15 @@ components:
           description: Hvilke språk er publisert for dette skjemaet
           items:
             $ref: "../common/components.yaml#/components/schemas/LanguageCode"
+        deletedAt:
+          type: string
+          format: date-time
+          description: Dato og tid for når skjemaet ble slettet
+          example: 2024-12-03T14:10:00Z
+        deletedBy:
+          type: string
+          description: Hvem slettet dette skjemaet
+          example: Lars Larsen
         status:
           $ref: "#/components/schemas/FormStatus"
         lock:
@@ -191,6 +200,15 @@ components:
         publishedBy:
           type: string
           description: Hvem publiserte dette skjemaet sist
+          example: Lars Larsen
+        deletedAt:
+          type: string
+          format: date-time
+          description: Dato og tid for når skjemaet ble slettet
+          example: 2024-12-03T14:10:00Z
+        deletedBy:
+          type: string
+          description: Hvem slettet dette skjemaet
           example: Lars Larsen
         status:
           $ref: "#/components/schemas/FormStatus"

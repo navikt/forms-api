@@ -43,7 +43,7 @@ class FormPublicationsService(
 
 	@Transactional
 	fun publishForm(formPath: String, formRevision: Int, languages: List<LanguageCode>?, userId: String): FormDto {
-		val form = formRepository.findByPath(formPath) ?: throw IllegalArgumentException("Invalid form path: $formPath")
+		val form = formRepository.findByPathAndDeletedAtIsNull(formPath) ?: throw ResourceNotFoundException("Form not found", formPath)
 
 		val latestPublicationOfGlobalTranslations = publishedGlobalTranslationsRepository.findFirstByOrderByCreatedAtDesc()
 			?: throw ResourceNotFoundException("Publication of global translations not found", "latest")
@@ -94,7 +94,7 @@ class FormPublicationsService(
 
 	@Transactional
 	fun getPublishedForm(formPath: String): FormDto {
-		val form = formRepository.findByPath(formPath)
+		val form = formRepository.findByPathAndDeletedAtIsNull(formPath)
 			?: throw ResourceNotFoundException("Form not found", formPath)
 		val latestPublication = form.findLatestPublication().takeIf { it?.status == FormPublicationStatusDb.Published }
 			?: throw ResourceNotFoundException("Form not published", formPath)
