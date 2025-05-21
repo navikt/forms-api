@@ -247,13 +247,13 @@ class EditFormsControllerTest : ApplicationTest(setupPublishedGlobalTranslations
 		assertEquals(6, forms.size)
 	}
 
-	fun assertPrecenceOfProps(formDto: FormCompactDto, select: List<String>) {
-		for (prop in FormCompactDto::class.memberProperties) {
+	fun <T : Any> assertPrecenceOfProps(dto: T, select: List<String>) {
+		for (prop in dto::class.memberProperties) {
 			// id should always be present
 			if (prop.name == "id" || select.contains(prop.name)) {
-				assertNotNull(prop.getter.call(formDto), "Expected ${prop.name} not to be null")
+				assertNotNull(prop.getter.call(dto), "Expected ${prop.name} not to be null")
 			} else {
-				assertNull(prop.getter.call(formDto), "Expected ${prop.name} to be null")
+				assertNull(prop.getter.call(dto), "Expected ${prop.name} to be null")
 			}
 		}
 	}
@@ -459,6 +459,28 @@ class EditFormsControllerTest : ApplicationTest(setupPublishedGlobalTranslations
 			.errorBody.let {
 				assertEquals(DbError.FORMSAPI_002.message, it.errorMessage)
 			}
+	}
+
+	@Test
+	fun testGetFormWithSelect() {
+		val authToken = mockOAuth2Server.createMockToken()
+		val formPath = "nav123456"
+		testFormsApi.createForm(FormsTestdata.newFormRequest(skjemanummer = formPath), authToken)
+			.assertSuccess()
+			.body
+
+		val select1 = "path,title"
+		assertPrecenceOfProps(
+			testFormsApi.getForm(formPath, select = select1).assertSuccess().body,
+			select1.split(",")
+		)
+
+		val select2 = "components,revision"
+		assertPrecenceOfProps(
+			testFormsApi.getForm(formPath, select = select2).assertSuccess().body,
+			select2.split(",")
+		)
+
 	}
 
 }

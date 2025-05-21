@@ -9,6 +9,13 @@ get:
       required: true
       schema:
         $ref: "./components.yaml#/components/schemas/FormPath"
+    - name: select
+      description: Kommaseparert liste med hvilke egenskaper som skal inkluderes. Id blir alltid inkludert.
+      example: path,title,introPage
+      in: query
+      required: false
+      schema:
+        type: string
     - name: includeDeleted
       in: query
       description: Returner skjema også dersom det er slettet. Standardverdi er false.

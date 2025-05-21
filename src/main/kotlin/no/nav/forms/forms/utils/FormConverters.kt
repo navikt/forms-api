@@ -19,7 +19,7 @@ private val typeRefPublishedLanguages = object : TypeReference<List<String>>() {
 fun FormEntity.findLatestPublication(): FormPublicationEntity? = this.publications.lastOrNull()
 
 fun FormRevisionEntity.toDto(select: List<String>? = null): FormDto {
-	fun include(prop: String): Boolean = (select == null || select.contains(prop) == true)
+	fun include(prop: String): Boolean = (select == null || select.contains(prop))
 	val latestPublication = this.form.findLatestPublication()
 	val status = when {
 		latestPublication == null -> FormStatus.draft
@@ -66,7 +66,7 @@ fun FormDto.withComponents(components: FormRevisionComponentsEntity): FormDto {
 }
 
 fun FormViewEntity.toFormCompactDto(select: List<String>? = null): FormCompactDto {
-	fun include(prop: String): Boolean = (select == null || select.contains(prop) == true)
+	fun include(prop: String): Boolean = (select == null || select.contains(prop))
 	val status = when {
 		this.publicationStatus == null -> FormStatus.draft
 		this.publicationStatus == FormPublicationStatusDb.Unpublished -> FormStatus.unpublished

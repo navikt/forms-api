@@ -83,15 +83,19 @@ class EditFormsService(
 	}
 
 	@Transactional(Transactional.TxType.SUPPORTS)
-	fun getForm(formPath: String, includeDeleted: Boolean): FormDto {
+	fun getForm(formPath: String, listOfProperties: List<String>? = null, includeDeleted: Boolean): FormDto {
 		val form = when {
 			includeDeleted -> formRepository.findByPath(formPath)
 			else -> formRepository.findByPathAndDeletedAtIsNull(formPath)
 		} ?: throw ResourceNotFoundException("Form not found", formPath)
 		val latestRevision = form.revisions.last()
-		val componentsEntity = formRevisionComponentsRepository.findById(latestRevision.componentsId)
-			.getOrElse { throw IllegalStateException("Failed to load components for latest form revision (${formPath})") }
-		return latestRevision.toDto().withComponents(componentsEntity)
+		return latestRevision.toDto(listOfProperties).also {
+			if (listOfProperties == null || listOfProperties.contains("components")) {
+				val componentsEntity = formRevisionComponentsRepository.findById(latestRevision.componentsId)
+					.getOrElse { throw IllegalStateException("Failed to load components for latest form revision (${formPath})") }
+				return it.withComponents(componentsEntity)
+			}
+		}
 	}
 
 	@Transactional
