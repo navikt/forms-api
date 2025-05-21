@@ -37,6 +37,7 @@ class EditFormTranslationsController(
 			formPath,
 			id,
 			formsapiEntityRevision,
+			updateFormTranslationRequest.tag,
 			updateFormTranslationRequest.globalTranslationId,
 			updateFormTranslationRequest.nb,
 			updateFormTranslationRequest.nn,
@@ -55,6 +56,7 @@ class EditFormTranslationsController(
 		val dto = editFormTranslationsService.createTranslation(
 			formPath,
 			newFormTranslationRequestDto.key,
+			newFormTranslationRequestDto.tag,
 			newFormTranslationRequestDto.globalTranslationId,
 			newFormTranslationRequestDto.nb,
 			newFormTranslationRequestDto.nn,

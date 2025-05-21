@@ -44,11 +44,13 @@ class EditFormTranslationsControllerTest : ApplicationTest(setupPublishedGlobalT
 		assertEquals(createRequest.nb, createResponse.body.nb)
 		assertEquals(createRequest.nn, createResponse.body.nn)
 		assertNull(createResponse.body.en)
+		assertEquals("standard", createResponse.body.tag)
 
 		val updateRequest = UpdateFormTranslationRequest(
 			nb = createResponse.body.nb,
 			nn = "Opplysningar om søkjaren",
 			en = "Information about the applicant",
+			tag = "introPage",
 		)
 		val updateResponse = testFormsApi.updateFormTranslation(
 			formPath,
@@ -63,6 +65,25 @@ class EditFormTranslationsControllerTest : ApplicationTest(setupPublishedGlobalT
 		assertEquals(updateRequest.nb, updateResponse.body.nb)
 		assertEquals(updateRequest.nn, updateResponse.body.nn)
 		assertEquals(updateRequest.en, updateResponse.body.en)
+		assertEquals(updateRequest.tag, updateResponse.body.tag)
+	}
+
+	@Test
+	fun testCreateFormTranslationWithCustomTag() {
+		val authToken = mockOAuth2Server.createMockToken()
+		val customTag = "summary"
+
+		val createRequest = NewFormTranslationRequestDto(
+			key = "Opplysninger om søker",
+			tag = customTag
+		)
+		val createResponse = testFormsApi.createFormTranslation(formPath, createRequest, authToken).assertSuccess()
+		assertEquals(customTag, createResponse.body.tag)
+
+		testFormsApi.getFormTranslations(formPath).assertSuccess()
+			.body.first { it.key == createRequest.key }.let {
+				assertEquals(customTag, it.tag)
+			}
 	}
 
 	@Test
@@ -96,7 +117,7 @@ class EditFormTranslationsControllerTest : ApplicationTest(setupPublishedGlobalT
 	}
 
 	@Test
-	fun failsOnEditAlreadyEditedFormTranslation() {
+	fun failsOnEditWhenRevisionIsNotTheMostRecent() {
 		val authToken = mockOAuth2Server.createMockToken()
 
 		val createRequest = NewFormTranslationRequestDto(
@@ -108,25 +129,42 @@ class EditFormTranslationsControllerTest : ApplicationTest(setupPublishedGlobalT
 
 		assertEquals(1, createResponse.body.revision)
 
-		val updateRequest = UpdateFormTranslationRequest(
+		val update1 = UpdateFormTranslationRequest(
 			nb = createResponse.body.nb,
-			nn = "Testar",
+			nn = "Testar1",
 		)
 		testFormsApi.updateFormTranslation(
 			formPath,
 			formTranslationId,
 			1,
-			updateRequest,
+			update1,
 			authToken,
 		).assertSuccess()
 
+		val update2 = UpdateFormTranslationRequest(
+			nb = createResponse.body.nb,
+			nn = "Testar2",
+			tag = "grillfest",
+		)
 		testFormsApi.updateFormTranslation(
 			formPath,
 			formTranslationId,
 			1,
-			updateRequest,
+			update2,
 			authToken,
 		).assertHttpStatus(HttpStatus.CONFLICT)
+
+		testFormsApi.getFormTranslations(formPath)
+			.assertSuccess()
+			.body.let { translations ->
+				translations.first { it.id == formTranslationId }.let {
+					assertEquals(2, it.revision)
+					assertEquals(update1.nn, it.nn)
+					assertEquals(createRequest.nb, it.nb)
+					assertNotEquals(update2.tag, it.tag)
+					assertNull(it.en)
+				}
+			}
 	}
 
 	@Test
