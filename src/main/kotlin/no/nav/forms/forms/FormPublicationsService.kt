@@ -4,6 +4,7 @@ import jakarta.persistence.EntityManager
 import jakarta.transaction.Transactional
 import no.nav.forms.exceptions.InvalidRevisionException
 import no.nav.forms.exceptions.ResourceNotFoundException
+import no.nav.forms.forms.repository.FormAttributeRepository
 import no.nav.forms.forms.repository.FormPublicationRepository
 import no.nav.forms.forms.repository.FormRepository
 import no.nav.forms.forms.repository.FormRevisionComponentsRepository
@@ -11,9 +12,9 @@ import no.nav.forms.forms.repository.FormViewRepository
 import no.nav.forms.forms.repository.entity.FormPublicationEntity
 import no.nav.forms.forms.repository.entity.FormPublicationStatusDb
 import no.nav.forms.forms.utils.findLatestPublication
+import no.nav.forms.forms.utils.getPropLoader
 import no.nav.forms.forms.utils.toDto
 import no.nav.forms.forms.utils.toFormCompactDto
-import no.nav.forms.forms.utils.withComponents
 import no.nav.forms.model.FormCompactDto
 import no.nav.forms.model.FormDto
 import no.nav.forms.model.PublishedTranslationsDto
@@ -28,11 +29,13 @@ import no.nav.forms.utils.toJsonNode
 import no.nav.forms.utils.toLanguageCodes
 import org.springframework.stereotype.Service
 import java.time.LocalDateTime
+import kotlin.jvm.optionals.getOrElse
 
 @Service
 class FormPublicationsService(
 	val formPublicationRepository: FormPublicationRepository,
 	val formRepository: FormRepository,
+	val formAttributeRepository: FormAttributeRepository,
 	val formRevisionComponentsRepository: FormRevisionComponentsRepository,
 	val publishedGlobalTranslationsRepository: PublishedGlobalTranslationsRepository,
 	val publishedFormTranslationRepository: PublishedFormTranslationRepository,
@@ -88,8 +91,20 @@ class FormPublicationsService(
 		)
 		entityManager.refresh(form)
 
-		val formRevisionComponents = formRevisionComponentsRepository.findById(latestFormRevision.componentsId).get()
-		return latestFormRevision.toDto().withComponents(formRevisionComponents)
+		val componentsEntity = formRevisionComponentsRepository.findById(latestFormRevision.componentsId)
+			.getOrElse { throw IllegalStateException("Failed to load components for latest form revision (${formPath})") }
+		val introPageEntity = when {
+			latestFormRevision.introPageId != null -> formAttributeRepository.findById(latestFormRevision.introPageId!!)
+				.getOrElse { throw IllegalStateException("Failed to load intro page for latest form revision (${formPath})") }
+
+			else -> null
+		}
+		return latestFormRevision.toDto(
+			propLoaders = mapOf(
+				"introPage" to introPageEntity.getPropLoader(),
+				"components" to componentsEntity.getPropLoader()
+			)
+		)
 	}
 
 	@Transactional
@@ -99,8 +114,20 @@ class FormPublicationsService(
 		val latestPublication = form.findLatestPublication().takeIf { it?.status == FormPublicationStatusDb.Published }
 			?: throw ResourceNotFoundException("Form not published", formPath)
 		val publishedFormRevision = latestPublication.formRevision
-		val formRevisionComponents = formRevisionComponentsRepository.findById(publishedFormRevision.componentsId).get()
-		return publishedFormRevision.toDto().withComponents(formRevisionComponents)
+		val componentsEntity = formRevisionComponentsRepository.findById(publishedFormRevision.componentsId)
+			.getOrElse { throw IllegalStateException("Failed to load components for latest form revision (${formPath})") }
+		val introPageEntity = when {
+			publishedFormRevision.introPageId != null -> formAttributeRepository.findById(publishedFormRevision.introPageId!!)
+				.getOrElse { throw IllegalStateException("Failed to load intro page for latest form revision (${formPath})") }
+
+			else -> null
+		}
+		return publishedFormRevision.toDto(
+			propLoaders = mapOf(
+				"introPage" to introPageEntity.getPropLoader(),
+				"components" to componentsEntity.getPropLoader()
+			)
+		)
 	}
 
 	@Transactional

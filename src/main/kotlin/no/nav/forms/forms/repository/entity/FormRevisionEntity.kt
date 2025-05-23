@@ -32,6 +32,9 @@ class FormRevisionEntity(
 	@Column(name = "form_revision_components_id", nullable = false)
 	val componentsId: Long,
 
+	@Column(name = "intro_page_id", nullable = true)
+	val introPageId: Long? = null,
+
 	@Convert(converter = DbJsonObjectConverter::class)
 	@JdbcTypeCode(SqlTypes.JSON)
 	@Column(name = "properties", columnDefinition = "jsonb", nullable = true) val properties: JsonNode,

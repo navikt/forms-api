@@ -12,12 +12,14 @@ class FormsTestdata {
 			title: String = "Mitt testskjema",
 			properties: Map<String, Any> = mapOf("tema" to "BIL", "innsending" to "PAPIR_OG_DIGITAL"),
 			components: List<Map<String, Any>> = listOf(mapOf("type" to "panel")),
+			introPage: Map<String, Any>? = null,
 		): NewFormRequest {
 			return NewFormRequest(
 				skjemanummer = skjemanummer,
 				title = title,
 				components = components,
-				properties = properties
+				properties = properties,
+				introPage = introPage,
 			)
 		}
 
@@ -25,11 +27,13 @@ class FormsTestdata {
 			title: String? = "Mitt testskjema",
 			properties: Map<String, Any>? = mapOf("tema" to "BIL", "innsending" to "PAPIR_OG_DIGITAL"),
 			components: List<Map<String, Any>>? = listOf(mapOf("type" to "panel")),
+			introPage: Map<String, Any>? = null,
 		): UpdateFormRequest {
 			return UpdateFormRequest(
 				title = title,
 				components = components,
-				properties = properties
+				properties = properties,
+				introPage = introPage,
 			)
 		}
 	}

@@ -12,6 +12,7 @@ fun FormTranslationEntity.toDto(): FormTranslationDto {
 	return FormTranslationDto(
 		id = this.id!!,
 		key = this.key,
+		tag = this.tag,
 		revision = latestRevision?.revision,
 		nb = latestRevision?.nb,
 		nn = latestRevision?.nn,
@@ -26,6 +27,7 @@ fun FormTranslationRevisionEntity.toDto(): FormTranslationDto {
 	return FormTranslationDto(
 		id = this.formTranslation.id!!,
 		key = this.formTranslation.key,
+		tag = this.formTranslation.tag,
 		revision = this.revision,
 		globalTranslationId = this.globalTranslation?.id,
 		nb = if (latestGlobalRevision != null) latestGlobalRevision.nb else this.nb,

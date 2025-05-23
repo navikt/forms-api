@@ -36,6 +36,7 @@ class EditFormTranslationsService(
 		formPath: String,
 		id: Long,
 		revision: Int,
+		tag: String?,
 		globalTranslationId: Long?,
 		nb: String?,
 		nn: String?,
@@ -49,6 +50,7 @@ class EditFormTranslationsService(
 
 		val formTranslation = formTranslationRepository.findById(id)
 			.getOrElse { throw ResourceNotFoundException("Form translation not found", id.toString()) }
+			.apply { if (tag?.isNotBlank() == true) this.tag = tag }
 		if (formTranslation.form.path != formPath) {
 			throw IllegalArgumentException("Illegal combination of form path and form translation id")
 		}
@@ -75,6 +77,7 @@ class EditFormTranslationsService(
 	fun createTranslation(
 		formPath: String,
 		key: String,
+		tag: String?,
 		globalTranslationId: Long?,
 		nb: String?,
 		nn: String?,
@@ -88,15 +91,17 @@ class EditFormTranslationsService(
 				.getOrElse { throw IllegalArgumentException("Global translation not found") }
 		}
 
+		val sanitizedTag = tag?.takeIf { it.isNotBlank() } ?: "standard"
 		val formTranslation = formTranslationRepository.findByFormPathAndKey(formPath, key)?.apply {
 			if (deletedAt != null) {
 				this.deletedAt = null
 				this.deletedBy = null
+				this.tag = sanitizedTag
 				formTranslationRepository.save(this)
 			} else {
 				throw DuplicateResourceException("Translation with key is already associated with $formPath", formPath)
 			}
-		} ?: formTranslationRepository.save(FormTranslationEntity(form = form, key = key))
+		} ?: formTranslationRepository.save(FormTranslationEntity(form = form, key = key, tag = sanitizedTag))
 
 		val latestRevision = formTranslation.revisions?.lastOrNull()
 		val formTranslationRevision = formTranslationRevisionRepository.save(

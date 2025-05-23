@@ -33,6 +33,11 @@ components:
       additionalProperties: {}
       description: Et objekt med skjemaets egenskaper (json)
       example: {"tema": "AAP", "innsending": "PAPIR_OG_DIGITAL"}
+    IntroPage:
+      type: object
+      additionalProperties: {}
+      description: Et objekt med skjemaets introduksjonsside (json)
+      example: {"enabled": true, "introduction": "Her er skjemaet", sections: {"scope": {"title": "Her kan du søke om:"}}}
     FormStatus:
       type: string
       enum: [ "draft", "published", "pending", "unpublished" ]
@@ -76,6 +81,8 @@ components:
           $ref: "#/components/schemas/Components"
         properties:
           $ref: "#/components/schemas/Properties"
+        introPage:
+          $ref: "#/components/schemas/IntroPage"
     UpdateFormRequest:
       type: object
       description: Data for skjemaet som skal oppdateres. Dersom et felt ikke er inkludert i oppdateringen, vil det ikke endres.
@@ -88,6 +95,8 @@ components:
           $ref: "#/components/schemas/Components"
         properties:
           $ref: "#/components/schemas/Properties"
+        introPage:
+          $ref: "#/components/schemas/IntroPage"
     LockFormRequest:
       type: object
       description: Forespørsel om å låse dette skjemaet
@@ -119,6 +128,8 @@ components:
           $ref: "#/components/schemas/Components"
         properties:
           $ref: "#/components/schemas/Properties"
+        introPage:
+          $ref: "#/components/schemas/IntroPage"
         createdAt:
           type: string
           format: date-time
