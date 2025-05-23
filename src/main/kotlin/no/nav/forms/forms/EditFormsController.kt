@@ -29,6 +29,7 @@ class EditFormsController(
 			newFormRequest.title.trim(),
 			newFormRequest.components,
 			newFormRequest.properties,
+			newFormRequest.introPage,
 			userId,
 		)
 		return ResponseEntity.status(HttpStatus.CREATED).body(newForm)
@@ -57,6 +58,7 @@ class EditFormsController(
 			updateFormRequest.title?.trim(),
 			updateFormRequest.components,
 			updateFormRequest.properties,
+			updateFormRequest.introPage,
 			userId
 		)
 		return ResponseEntity.ok(form)

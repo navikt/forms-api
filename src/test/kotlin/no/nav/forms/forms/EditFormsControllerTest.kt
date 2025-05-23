@@ -2,11 +2,11 @@ package no.nav.forms.forms
 
 import no.nav.forms.ApplicationTest
 import no.nav.forms.exceptions.db.DbError
-import no.nav.forms.model.FormCompactDto
 import no.nav.forms.model.LockFormRequest
 import no.nav.forms.testutils.createMockToken
 import no.nav.forms.testutils.FormsTestdata
 import no.nav.forms.testutils.MOCK_USER_GROUP_ID
+import no.nav.forms.utils.toFormPath
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -332,7 +332,7 @@ class EditFormsControllerTest : ApplicationTest(setupPublishedGlobalTranslations
 		val errorBody = testFormsApi.deleteForm(formPath, 1, authToken = null)
 			.assertHttpStatus(HttpStatus.UNAUTHORIZED)
 			.errorBody
-		assertEquals("Unauthorized", errorBody.errorMessage )
+		assertEquals("Unauthorized", errorBody.errorMessage)
 	}
 
 	@Test
@@ -481,6 +481,107 @@ class EditFormsControllerTest : ApplicationTest(setupPublishedGlobalTranslations
 			select2.split(",")
 		)
 
+	}
+
+	@Test
+	fun testCreateFormWithIntroPage() {
+		val authToken = mockOAuth2Server.createMockToken()
+		val introPage = mapOf(
+			"enabled" to true,
+			"introduction" to "Velkommen til skjemaet",
+			"section" to mapOf("scope" to "scope value"),
+		)
+		val createRequest = FormsTestdata.newFormRequest(
+			introPage = introPage
+		)
+
+		testFormsApi.createForm(createRequest, authToken)
+			.assertSuccess()
+			.body.let {
+				assertNotNull(it.introPage)
+				assertEquals(introPage, it.introPage)
+			}
+	}
+
+	@Test
+	fun testUpdateFormWithIntroPage() {
+		val authToken = mockOAuth2Server.createMockToken()
+		val introPage = mapOf(
+			"enabled" to true,
+			"introduction" to "Velkommen til skjemaet",
+			"section" to mapOf("scope" to "scope value"),
+		)
+		val createRequest = FormsTestdata.newFormRequest()
+		val formPath = createRequest.skjemanummer.toFormPath()
+		testFormsApi.createForm(createRequest, authToken)
+			.assertSuccess()
+			.body.let {
+				assertEquals(1, it.revision)
+				assertNull(it.introPage)
+			}
+
+		testFormsApi.updateForm(formPath, 1, FormsTestdata.updateFormRequest(introPage = introPage), authToken)
+			.assertSuccess()
+			.body.let {
+				assertEquals(2, it.revision)
+				assertEquals(introPage, it.introPage)
+			}
+	}
+
+	@Test
+	fun updateFormWithoutIntroPage() {
+		val authToken = mockOAuth2Server.createMockToken()
+		val introPage = mapOf(
+			"enabled" to true,
+			"introduction" to "Velkommen til skjemaet",
+			"section" to mapOf("scope" to "scope value"),
+		)
+		val createRequest = FormsTestdata.newFormRequest(introPage = introPage)
+		val formPath = createRequest.skjemanummer.toFormPath()
+		testFormsApi.createForm(createRequest, authToken)
+			.assertSuccess()
+			.body.let {
+				assertEquals(1, it.revision)
+				assertNotNull(it.introPage)
+				assertEquals(introPage, it.introPage)
+			}
+
+		testFormsApi.updateForm(formPath, 1, FormsTestdata.updateFormRequest(title = "Oppdatert tittel"), authToken)
+			.assertSuccess()
+			.body.let {
+				assertEquals(2, it.revision)
+				assertNotNull(it.introPage)
+				assertEquals(introPage, it.introPage)
+			}
+	}
+
+	@Test
+	fun testGetFormWithIntroPageOnly() {
+		val authToken = mockOAuth2Server.createMockToken()
+		val introPage = mapOf(
+			"enabled" to true,
+			"introduction" to "Velkommen til skjemaet",
+			"section" to mapOf("scope" to "scope value"),
+		)
+		val createRequest = FormsTestdata.newFormRequest(
+			introPage = introPage
+		)
+
+		val form = testFormsApi.createForm(createRequest, authToken)
+			.assertSuccess()
+			.body.let {
+				assertNotNull(it.introPage)
+				assertEquals(introPage, it.introPage)
+				it
+			}
+
+		testFormsApi.getForm(form.path!!, select = "introPage")
+			.assertSuccess()
+			.body.let {
+				assertNull(it.components)
+				assertNotNull(it.introPage)
+				assertEquals(introPage, it.introPage)
+			}
 	}
 
 }

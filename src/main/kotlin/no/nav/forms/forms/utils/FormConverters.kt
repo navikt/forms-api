@@ -12,13 +12,13 @@ import no.nav.forms.utils.mapDateTime
 import java.time.LocalDateTime
 
 private val mapper = ObjectMapper()
-private val typeRefProperties = object : TypeReference<Map<String, Any>>() {}
-private val typeRefComponents = object : TypeReference<List<Map<String, Any>>>() {}
+private val typeRefJsonNodeObject = object : TypeReference<Map<String, Any>>() {}
+private val typeRefJsonNodeArray = object : TypeReference<List<Map<String, Any>>>() {}
 private val typeRefPublishedLanguages = object : TypeReference<List<String>>() {}
 
 fun FormEntity.findLatestPublication(): FormPublicationEntity? = this.publications.lastOrNull()
 
-fun FormRevisionEntity.toDto(select: List<String>? = null): FormDto {
+fun FormRevisionEntity.toDto(select: List<String>? = null, propLoaders: Map<String, () -> Any?> = emptyMap()): FormDto {
 	fun include(prop: String): Boolean = (select == null || select.contains(prop))
 	val latestPublication = this.form.findLatestPublication()
 	val status = when {
@@ -33,7 +33,7 @@ fun FormRevisionEntity.toDto(select: List<String>? = null): FormDto {
 		skjemanummer = if (include("skjemanummer")) this.form.skjemanummer else null,
 		path = if (include("path")) this.form.path else null,
 		title = if (include("title")) this.title else null,
-		properties = if (include("properties")) mapper.convertValue(this.properties, typeRefProperties) else null,
+		properties = if (include("properties")) mapper.convertValue(this.properties, typeRefJsonNodeObject) else null,
 		createdAt = if (include("createdAt")) mapDateTime(this.form.createdAt) else null,
 		createdBy = if (include("createdBy")) this.form.createdBy else null,
 		changedAt = if (include("changedAt")) mapDateTime(this.createdAt) else null,
@@ -48,6 +48,10 @@ fun FormRevisionEntity.toDto(select: List<String>? = null): FormDto {
 		deletedBy = if (include("deletedBy")) this.form.deletedBy else null,
 		status = if (include("status")) status else null,
 		lock = if (include("lock")) this.form.lock?.toFormLockDto() else null,
+		introPage = if (include("introPage")) propLoaders["introPage"]?.invoke()
+			?.let { mapper.convertValue(it, typeRefJsonNodeObject) } else null,
+		components = if (include("components")) propLoaders["components"]?.invoke()
+			?.let { mapper.convertValue(it, typeRefJsonNodeArray) } else null,
 	)
 }
 
@@ -56,12 +60,6 @@ fun FormLockDb.toFormLockDto(): FormLock? {
 		this.createdAt,
 		this.createdBy,
 		this.reason,
-	)
-}
-
-fun FormDto.withComponents(components: FormRevisionComponentsEntity): FormDto {
-	return this.copy(
-		components = mapper.convertValue(components.value, typeRefComponents)
 	)
 }
 
@@ -80,7 +78,7 @@ fun FormViewEntity.toFormCompactDto(select: List<String>? = null): FormCompactDt
 		skjemanummer = if (include("skjemanummer")) this.skjemanummer else null,
 		path = if (include("path")) this.path else null,
 		title = if (include("title")) this.title else null,
-		properties = if (include("properties")) mapper.convertValue(this.properties, typeRefProperties) else null,
+		properties = if (include("properties")) mapper.convertValue(this.properties, typeRefJsonNodeObject) else null,
 		changedAt = if (include("changedAt")) mapDateTime(this.changedAt) else null,
 		changedBy = if (include("changedBy")) this.changedBy else null,
 		publishedAt = if (include("publishedAt") && this.publishedAt != null) mapDateTime(this.publishedAt as LocalDateTime) else null,
@@ -91,3 +89,7 @@ fun FormViewEntity.toFormCompactDto(select: List<String>? = null): FormCompactDt
 		lock = if (include("lock")) this.lock?.toFormLockDto() else null,
 	)
 }
+
+fun FormAttributeEntity?.getPropLoader(): () -> Any? = { this?.value }
+
+fun FormRevisionComponentsEntity.getPropLoader(): () -> Any? = { this.value }
