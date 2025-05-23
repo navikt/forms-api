@@ -91,5 +91,3 @@ fun FormViewEntity.toFormCompactDto(select: List<String>? = null): FormCompactDt
 }
 
 fun FormAttributeEntity?.getPropLoader(): () -> Any? = { this?.value }
-
-fun FormRevisionComponentsEntity.getPropLoader(): () -> Any? = { this.value }

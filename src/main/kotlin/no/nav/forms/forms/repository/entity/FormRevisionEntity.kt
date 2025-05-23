@@ -29,7 +29,7 @@ class FormRevisionEntity(
 	/**
 	 * Only map the id pointing to components json due to performance issues. Fetch type LAZY was not respected.
 	 */
-	@Column(name = "form_revision_components_id", nullable = false)
+	@Column(name = "components_id", nullable = false)
 	val componentsId: Long,
 
 	@Column(name = "intro_page_id", nullable = true)

@@ -10,12 +10,10 @@ import no.nav.forms.exceptions.LockedResourceException
 import no.nav.forms.exceptions.ResourceNotFoundException
 import no.nav.forms.forms.repository.FormAttributeRepository
 import no.nav.forms.forms.repository.FormRepository
-import no.nav.forms.forms.repository.FormRevisionComponentsRepository
 import no.nav.forms.forms.repository.FormRevisionRepository
 import no.nav.forms.forms.repository.FormViewRepository
 import no.nav.forms.forms.repository.entity.FormAttributeEntity
 import no.nav.forms.forms.repository.entity.FormEntity
-import no.nav.forms.forms.repository.entity.FormRevisionComponentsEntity
 import no.nav.forms.forms.repository.entity.FormRevisionEntity
 import no.nav.forms.forms.repository.entity.attributes.FormLockDb
 import no.nav.forms.forms.utils.getPropLoader
@@ -37,7 +35,6 @@ class EditFormsService(
 	val formRepository: FormRepository,
 	val formRevisionRepository: FormRevisionRepository,
 	val formAttributeRepository: FormAttributeRepository,
-	val formRevisionComponentsRepository: FormRevisionComponentsRepository,
 	val formViewRepository: FormViewRepository,
 	val entityManager: EntityManager,
 ) {
@@ -71,8 +68,8 @@ class EditFormsService(
 			formAttributeRepository.save(FormAttributeEntity("introPage", mapper.valueToTree(it)))
 		}
 
-		val componentsEntity = formRevisionComponentsRepository.save(
-			FormRevisionComponentsEntity(value = mapper.valueToTree(components))
+		val componentsEntity = formAttributeRepository.save(
+			FormAttributeEntity(name = "components", value = mapper.valueToTree(components))
 		)
 
 		val formRevision = formRevisionRepository.save(
@@ -111,7 +108,7 @@ class EditFormsService(
 			}
 		}
 		val loadComponents: () -> JsonNode? = {
-			formRevisionComponentsRepository.findById(latestRevision.componentsId)
+			formAttributeRepository.findById(latestRevision.componentsId)
 				.getOrElse { throw IllegalStateException("Failed to load components for latest form revision (${formPath})") }.value
 		}
 		return latestRevision.toDto(
@@ -143,12 +140,13 @@ class EditFormsService(
 			throw InvalidRevisionException("Unexpected form revision: $revision")
 		}
 		val componentsEntity = if (components != null) {
-			formRevisionComponentsRepository.save(
-				FormRevisionComponentsEntity(
+			formAttributeRepository.save(
+				FormAttributeEntity(
+					name = "components",
 					value = mapper.valueToTree(components)
 				)
 			)
-		} else formRevisionComponentsRepository.findById(latestFormRevision.componentsId)
+		} else formAttributeRepository.findById(latestFormRevision.componentsId)
 			.getOrElse { throw IllegalStateException("Failed to load components for latest form revision (${formPath})") }
 
 		val introPageEntity = when {
@@ -199,7 +197,7 @@ class EditFormsService(
 		logger.info("Form ${form.skjemanummer} ($formPath) locked by $userId")
 
 		val latestRevision = form.revisions.last()
-		val componentsEntity = formRevisionComponentsRepository.findById(latestRevision.componentsId)
+		val componentsEntity = formAttributeRepository.findById(latestRevision.componentsId)
 			.getOrElse { throw IllegalStateException("Failed to load components for latest form revision (${formPath})") }
 		val introPageEntity = when {
 			latestRevision.introPageId != null -> formAttributeRepository.findById(latestRevision.introPageId!!)
@@ -226,7 +224,7 @@ class EditFormsService(
 		logger.info("Form ${form.skjemanummer} ($formPath) unlocked by $userId")
 
 		val latestRevision = form.revisions.last()
-		val componentsEntity = formRevisionComponentsRepository.findById(latestRevision.componentsId)
+		val componentsEntity = formAttributeRepository.findById(latestRevision.componentsId)
 			.getOrElse { throw IllegalStateException("Failed to load components for latest form revision (${formPath})") }
 		val introPageEntity = when {
 			latestRevision.introPageId != null -> formAttributeRepository.findById(latestRevision.introPageId!!)
