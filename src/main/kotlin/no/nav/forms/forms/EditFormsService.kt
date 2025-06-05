@@ -13,12 +13,13 @@ import no.nav.forms.forms.repository.FormRepository
 import no.nav.forms.forms.repository.FormRevisionRepository
 import no.nav.forms.forms.repository.FormViewRepository
 import no.nav.forms.forms.repository.entity.FormAttributeEntity
+import no.nav.forms.forms.repository.entity.FormAttributeName.*
 import no.nav.forms.forms.repository.entity.FormEntity
 import no.nav.forms.forms.repository.entity.FormRevisionEntity
 import no.nav.forms.forms.repository.entity.attributes.FormLockDb
 import no.nav.forms.forms.utils.getPropLoader
-import no.nav.forms.forms.utils.toFormCompactDto
 import no.nav.forms.forms.utils.toDto
+import no.nav.forms.forms.utils.toFormCompactDto
 import no.nav.forms.model.FormCompactDto
 import no.nav.forms.model.FormDto
 import no.nav.forms.utils.Skjemanummer
@@ -65,15 +66,15 @@ class EditFormsService(
 		)
 
 		val componentsEntity = formAttributeRepository.save(
-			FormAttributeEntity(name = "components", value = mapper.valueToTree(components))
+			FormAttributeEntity(name = COMPONENTS, value = mapper.valueToTree(components))
 		)
 
 		val propertiesEntity = formAttributeRepository.save(
-			FormAttributeEntity(name = "properties", value = mapper.valueToTree(properties))
+			FormAttributeEntity(name = PROPERTIES, value = mapper.valueToTree(properties))
 		)
 
 		val introPageEntity = introPage?.let {
-			formAttributeRepository.save(FormAttributeEntity("introPage", mapper.valueToTree(it)))
+			formAttributeRepository.save(FormAttributeEntity(name = INTRO_PAGE, mapper.valueToTree(it)))
 		}
 
 		val formRevision = formRevisionRepository.save(
@@ -146,7 +147,7 @@ class EditFormsService(
 		val componentsEntity = if (components != null) {
 			formAttributeRepository.save(
 				FormAttributeEntity(
-					name = "components",
+					name = COMPONENTS,
 					value = mapper.valueToTree(components)
 				)
 			)
@@ -155,14 +156,20 @@ class EditFormsService(
 
 		val propertiesEntity = when {
 			properties != null -> formAttributeRepository.save(
-				FormAttributeEntity(name = "properties", value = mapper.valueToTree(properties))
+				FormAttributeEntity(name = PROPERTIES, value = mapper.valueToTree(properties))
 			)
 
 			else -> latestFormRevision.properties
 		}
 
 		val introPageEntity = when {
-			introPage != null -> formAttributeRepository.save(FormAttributeEntity("introPage", mapper.valueToTree(introPage)))
+			introPage != null -> formAttributeRepository.save(
+				FormAttributeEntity(
+					INTRO_PAGE,
+					mapper.valueToTree(introPage)
+				)
+			)
+
 			latestFormRevision.introPageId != null -> formAttributeRepository.findById(latestFormRevision.introPageId!!)
 				.getOrElse { throw IllegalStateException("Failed to load intro page for latest form revision (${formPath})") }
 
