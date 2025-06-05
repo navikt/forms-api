@@ -64,13 +64,17 @@ class EditFormsService(
 			)
 		)
 
-		val introPageEntity = introPage?.let {
-			formAttributeRepository.save(FormAttributeEntity("introPage", mapper.valueToTree(it)))
-		}
-
 		val componentsEntity = formAttributeRepository.save(
 			FormAttributeEntity(name = "components", value = mapper.valueToTree(components))
 		)
+
+		val propertiesEntity = formAttributeRepository.save(
+			FormAttributeEntity(name = "properties", value = mapper.valueToTree(properties))
+		)
+
+		val introPageEntity = introPage?.let {
+			formAttributeRepository.save(FormAttributeEntity("introPage", mapper.valueToTree(it)))
+		}
 
 		val formRevision = formRevisionRepository.save(
 			FormRevisionEntity(
@@ -79,7 +83,7 @@ class EditFormsService(
 				title = title,
 				componentsId = componentsEntity.id!!,
 				introPageId = introPageEntity?.id,
-				properties = mapper.valueToTree(properties),
+				properties = propertiesEntity,
 				createdAt = now,
 				createdBy = userId,
 			)
@@ -149,6 +153,14 @@ class EditFormsService(
 		} else formAttributeRepository.findById(latestFormRevision.componentsId)
 			.getOrElse { throw IllegalStateException("Failed to load components for latest form revision (${formPath})") }
 
+		val propertiesEntity = when {
+			properties != null -> formAttributeRepository.save(
+				FormAttributeEntity(name = "properties", value = mapper.valueToTree(properties))
+			)
+
+			else -> latestFormRevision.properties
+		}
+
 		val introPageEntity = when {
 			introPage != null -> formAttributeRepository.save(FormAttributeEntity("introPage", mapper.valueToTree(introPage)))
 			latestFormRevision.introPageId != null -> formAttributeRepository.findById(latestFormRevision.introPageId!!)
@@ -163,7 +175,7 @@ class EditFormsService(
 				revision = latestFormRevision.revision + 1,
 				title = title ?: latestFormRevision.title,
 				componentsId = componentsEntity.id!!,
-				properties = if (properties != null) mapper.valueToTree(properties) else latestFormRevision.properties,
+				properties = propertiesEntity,
 				introPageId = introPageEntity?.id,
 				createdAt = LocalDateTime.now(),
 				createdBy = userId,

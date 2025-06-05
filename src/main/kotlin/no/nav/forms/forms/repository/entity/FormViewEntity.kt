@@ -2,7 +2,7 @@ package no.nav.forms.forms.repository.entity
 
 import com.fasterxml.jackson.databind.JsonNode
 import jakarta.persistence.*
-import no.nav.forms.forms.repository.converter.DbJsonObjectConverter
+import no.nav.forms.forms.repository.converter.DbJsonbConverter
 import no.nav.forms.forms.repository.converter.FormLockConverter
 import no.nav.forms.forms.repository.entity.attributes.FormLockDb
 import org.hibernate.Hibernate
@@ -58,9 +58,9 @@ class FormViewEntity(
 	@Column(name = "deleted_by", columnDefinition = "varchar", nullable = true, updatable = false)
 	val deletedBy: String? = null,
 
-	@Convert(converter = DbJsonObjectConverter::class)
+	@Convert(converter = DbJsonbConverter::class)
 	@JdbcTypeCode(SqlTypes.JSON)
-	@Column(name = "properties", columnDefinition = "jsonb", nullable = true, updatable = false)
+	@Column(name = "properties", columnDefinition = "jsonb", nullable = false, updatable = false)
 	val properties: JsonNode,
 
 	@Column(name = "published_at", columnDefinition = "TIMESTAMP WITH TIME ZONE", updatable = false)

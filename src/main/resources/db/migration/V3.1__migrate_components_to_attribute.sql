@@ -1,3 +1,4 @@
+-- Migration script to move components from form_revision_components to form_attribute
 ALTER TABLE form_revision
 	ADD COLUMN components_id BIGINT,
 	ADD CONSTRAINT fk_form_revision_components_form_attribute
