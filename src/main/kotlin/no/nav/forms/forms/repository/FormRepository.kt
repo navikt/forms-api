@@ -12,10 +12,10 @@ import java.time.LocalDateTime
 @Repository
 interface FormRepository: JpaRepository<FormEntity, Long> {
 
-	@EntityGraph(attributePaths = ["revisions", "publications", "publications.publishedFormTranslation", "publications.publishedGlobalTranslation"])
+	@EntityGraph(attributePaths = ["revisions", "revisions.properties", "publications", "publications.publishedFormTranslation", "publications.publishedGlobalTranslation"])
 	fun findByPath(path: String): FormEntity?
 
-	@EntityGraph(attributePaths = ["revisions", "publications", "publications.publishedFormTranslation", "publications.publishedGlobalTranslation"])
+	@EntityGraph(attributePaths = ["revisions", "revisions.properties", "publications", "publications.publishedFormTranslation", "publications.publishedGlobalTranslation"])
 	fun findByPathAndDeletedAtIsNull(path: String): FormEntity?
 
 	@Modifying

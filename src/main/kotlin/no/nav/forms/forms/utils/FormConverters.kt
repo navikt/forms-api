@@ -33,7 +33,7 @@ fun FormRevisionEntity.toDto(select: List<String>? = null, propLoaders: Map<Stri
 		skjemanummer = if (include("skjemanummer")) this.form.skjemanummer else null,
 		path = if (include("path")) this.form.path else null,
 		title = if (include("title")) this.title else null,
-		properties = if (include("properties")) mapper.convertValue(this.properties, typeRefJsonNodeObject) else null,
+		properties = if (include("properties")) mapper.convertValue(this.properties.value, typeRefJsonNodeObject) else null,
 		createdAt = if (include("createdAt")) mapDateTime(this.form.createdAt) else null,
 		createdBy = if (include("createdBy")) this.form.createdBy else null,
 		changedAt = if (include("changedAt")) mapDateTime(this.createdAt) else null,
@@ -91,5 +91,3 @@ fun FormViewEntity.toFormCompactDto(select: List<String>? = null): FormCompactDt
 }
 
 fun FormAttributeEntity?.getPropLoader(): () -> Any? = { this?.value }
-
-fun FormRevisionComponentsEntity.getPropLoader(): () -> Any? = { this.value }
