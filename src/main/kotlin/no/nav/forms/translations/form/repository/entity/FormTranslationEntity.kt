@@ -16,6 +16,9 @@ class FormTranslationEntity(
 	@Column(name = "key", columnDefinition = "varchar")
 	val key: String,
 
+	@Column(name = "tag", columnDefinition = "varchar")
+	var tag: String,
+
 	@OneToMany(fetch = FetchType.LAZY, mappedBy = "formTranslation")
 	@OrderBy("created_at asc")
 	val revisions: Set<FormTranslationRevisionEntity>? = emptySet(),

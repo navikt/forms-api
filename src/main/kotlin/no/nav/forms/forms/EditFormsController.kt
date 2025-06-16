@@ -29,14 +29,19 @@ class EditFormsController(
 			newFormRequest.title.trim(),
 			newFormRequest.components,
 			newFormRequest.properties,
+			newFormRequest.introPage,
 			userId,
 		)
 		return ResponseEntity.status(HttpStatus.CREATED).body(newForm)
 	}
 
 	@Unprotected
-	override fun getForm(formPath: String, includeDeleted: Boolean): ResponseEntity<FormDto> {
-		val form = editFormsService.getForm(formPath, includeDeleted)
+	override fun getForm(formPath: String, select: String?, includeDeleted: Boolean): ResponseEntity<FormDto> {
+		val selectList = when {
+			select?.isNotEmpty() == true -> select.split(",")
+			else -> null
+		}
+		val form = editFormsService.getForm(formPath, selectList, includeDeleted)
 		return ResponseEntity.ok(form)
 	}
 
@@ -53,6 +58,7 @@ class EditFormsController(
 			updateFormRequest.title?.trim(),
 			updateFormRequest.components,
 			updateFormRequest.properties,
+			updateFormRequest.introPage,
 			userId
 		)
 		return ResponseEntity.ok(form)
