@@ -7,7 +7,6 @@ import no.nav.forms.exceptions.ResourceNotFoundException
 import no.nav.forms.forms.repository.FormAttributeRepository
 import no.nav.forms.forms.repository.FormPublicationRepository
 import no.nav.forms.forms.repository.FormRepository
-import no.nav.forms.forms.repository.FormRevisionComponentsRepository
 import no.nav.forms.forms.repository.FormViewRepository
 import no.nav.forms.forms.repository.entity.FormPublicationEntity
 import no.nav.forms.forms.repository.entity.FormPublicationStatusDb
@@ -36,7 +35,6 @@ class FormPublicationsService(
 	val formPublicationRepository: FormPublicationRepository,
 	val formRepository: FormRepository,
 	val formAttributeRepository: FormAttributeRepository,
-	val formRevisionComponentsRepository: FormRevisionComponentsRepository,
 	val publishedGlobalTranslationsRepository: PublishedGlobalTranslationsRepository,
 	val publishedFormTranslationRepository: PublishedFormTranslationRepository,
 	val formTranslationRepository: FormTranslationRepository,
@@ -91,7 +89,7 @@ class FormPublicationsService(
 		)
 		entityManager.refresh(form)
 
-		val componentsEntity = formRevisionComponentsRepository.findById(latestFormRevision.componentsId)
+		val componentsEntity = formAttributeRepository.findById(latestFormRevision.componentsId)
 			.getOrElse { throw IllegalStateException("Failed to load components for latest form revision (${formPath})") }
 		val introPageEntity = when {
 			latestFormRevision.introPageId != null -> formAttributeRepository.findById(latestFormRevision.introPageId!!)
@@ -114,7 +112,7 @@ class FormPublicationsService(
 		val latestPublication = form.findLatestPublication().takeIf { it?.status == FormPublicationStatusDb.Published }
 			?: throw ResourceNotFoundException("Form not published", formPath)
 		val publishedFormRevision = latestPublication.formRevision
-		val componentsEntity = formRevisionComponentsRepository.findById(publishedFormRevision.componentsId)
+		val componentsEntity = formAttributeRepository.findById(publishedFormRevision.componentsId)
 			.getOrElse { throw IllegalStateException("Failed to load components for latest form revision (${formPath})") }
 		val introPageEntity = when {
 			publishedFormRevision.introPageId != null -> formAttributeRepository.findById(publishedFormRevision.introPageId!!)

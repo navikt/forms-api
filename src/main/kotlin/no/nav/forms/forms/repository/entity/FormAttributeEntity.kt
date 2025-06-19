@@ -18,7 +18,7 @@ import kotlin.jvm.javaClass
 @Table(name = "form_attribute")
 open class FormAttributeEntity (
 	@Column(name = "name", columnDefinition = "varchar", nullable = false, updatable = false)
-	val name: String,
+	val name: FormAttributeName,
 
 	@Convert(converter = DbJsonbConverter::class)
 	@JdbcTypeCode(SqlTypes.JSON)
