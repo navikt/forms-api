@@ -49,7 +49,7 @@
 		<micrometer.version>1.13.3</micrometer.version>
 
 		<!-- Logging -->
-		<logstash.version>8.1</logstash.version>
+		<logstash.version>9.0</logstash.version>
 	</properties>
 
 	<dependencies>
