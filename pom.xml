@@ -37,7 +37,7 @@
 		<!-- OpenAPI -->
 		<openapi-generator-maven-plugin.version>7.17.0</openapi-generator-maven-plugin.version>
 		<springdoc-openapi.version>2.8.14</springdoc-openapi.version>
-		<swagger-annotations.version>2.2.40</swagger-annotations.version>
+		<swagger-annotations.version>2.2.41</swagger-annotations.version>
 
 		<!--Token-->
 		<token-validation.version>5.0.30</token-validation.version>
