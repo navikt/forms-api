@@ -1,0 +1,31 @@
+components:
+  schemas:
+    StaticPdfDbId:
+      type: integer
+      format: int64
+      description: Skjemaets id i databasen
+      example: 75
+    FormPath:
+      type: string
+      description: Skjemaets path
+      example: nav110420
+    LanguageCode:
+      type: string
+      description: Språkkode
+      example: no
+    StaticPdfDto:
+      type: object
+      required:
+      - id
+      properties:
+        id:
+          $ref: "#/components/schemas/StaticPdfDbId"
+        createdAt:
+          type: string
+          format: date-time
+          description: Dato og tid for når pdf ble opprettet
+          example: 2020-01-01T12:00:00Z
+        createdBy:
+          type: string
+          description: Hvem som lastet opp skjemaet
+          example: Ola Nordmann
