@@ -1,3 +1,6 @@
+server:
+  port: 9082
+
 spring:
   flyway:
     clean-disabled: false

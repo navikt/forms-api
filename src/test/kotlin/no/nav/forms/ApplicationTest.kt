@@ -32,7 +32,7 @@ abstract class ApplicationTest(val setupPublishedGlobalTranslations: Boolean = f
 	@Autowired
 	private lateinit var flyway: Flyway
 
-	final val baseUrl = "http://localhost:8082"
+	final val baseUrl = "http://localhost:9082"
 
 	lateinit var testFormsApi: TestFormsApi
 
