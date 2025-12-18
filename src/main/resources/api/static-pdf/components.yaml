@@ -5,14 +5,6 @@ components:
       format: int64
       description: PDF id i databasen
       example: 75
-    FormPath:
-      type: string
-      description: Skjemaets path
-      example: nav110420
-    LanguageCode:
-      type: string
-      description: Språkkode
-      example: no
     UploadPdfRequest:
       type: object
       description: Last opp en statisk PDF for et skjema og språkkode
@@ -34,7 +26,7 @@ components:
         id:
           $ref: "#/components/schemas/StaticPdfDbId"
         languageCode:
-          $ref: "#/components/schemas/LanguageCode"
+          $ref: "../common/components.yaml#/components/schemas/LanguageCode"
         fileName:
           $ref: "#/components/schemas/FileName"
         createdAt:
@@ -65,7 +57,7 @@ components:
         id:
           $ref: "#/components/schemas/StaticPdfDbId"
         languageCode:
-          $ref: "#/components/schemas/LanguageCode"
+          $ref: "../common/components.yaml#/components/schemas/LanguageCode"
         fileName:
           $ref: "#/components/schemas/FileName"
         createdAt:

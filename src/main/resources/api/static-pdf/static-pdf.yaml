@@ -9,13 +9,13 @@ post:
       description: Skjemaets path
       required: true
       schema:
-        $ref: "./components.yaml#/components/schemas/FormPath"
+        $ref: "../forms/components.yaml#/components/schemas/FormPath"
     - name: languageCode
       in: path
       description: Språkkode
       required: true
       schema:
-        $ref: "./components.yaml#/components/schemas/LanguageCode"
+        $ref: "../common/components.yaml#/components/schemas/LanguageCode"
   requestBody:
    content:
      multipart/form-data:
@@ -49,13 +49,13 @@ delete:
       description: Skjemaets path
       required: true
       schema:
-        $ref: "./components.yaml#/components/schemas/FormPath"
+        $ref: "../forms/components.yaml#/components/schemas/FormPath"
     - name: languageCode
       in: path
       description: Språkkode
       required: true
       schema:
-        $ref: "./components.yaml#/components/schemas/LanguageCode"
+        $ref: "../common/components.yaml#/components/schemas/LanguageCode"
   responses:
     204:
       description: PDF har blitt slettet
