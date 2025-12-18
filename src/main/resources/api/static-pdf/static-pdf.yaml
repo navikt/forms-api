@@ -16,11 +16,21 @@ post:
       required: true
       schema:
         $ref: "./components.yaml#/components/schemas/LanguageCode"
+  requestBody:
+   content:
+     multipart/form-data:
+       schema:
+         $ref: "./components.yaml#/components/schemas/UploadPdfRequest"
+   required: true
   responses:
     201:
       description: PDF er lastet opp
-    404:
-      description: Finner ikke skjema med gitt id
+      content:
+        application/json:
+          schema:
+            $ref: "./components.yaml#/components/schemas/UploadPdfResponse"
+    500:
+      description: Noe gikk galt under opplastingen
       content:
         application/json:
           schema:
