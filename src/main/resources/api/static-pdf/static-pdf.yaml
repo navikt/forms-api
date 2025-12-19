@@ -38,6 +38,52 @@ post:
   tags:
     - static-pdf
 
+get:
+  summary: Henter en statisk PDF for en språkkode
+  operationId: getStaticPdf
+  security:
+  - bearerAuth: []
+  parameters:
+    - name: formPath
+      in: path
+      description: Skjemaets path
+      required: true
+      schema:
+        $ref: "../forms/components.yaml#/components/schemas/FormPath"
+    - name: languageCode
+      in: path
+      description: Språkkode
+      required: true
+      schema:
+        $ref: "../common/components.yaml#/components/schemas/LanguageCode"
+  responses:
+    200:
+      description: PDF for gitt språkkode
+      content:
+        application/pdf:
+          schema:
+            $ref: "./components.yaml#/components/schemas/FileContent"
+    401:
+      description: Bruker er ikke autentisert
+      content:
+        application/json:
+          schema:
+            $ref: "../common/components.yaml#/components/schemas/ErrorResponseDto"
+    404:
+      description: PDF finnes ikke
+      content:
+        application/json:
+          schema:
+            $ref: "../common/components.yaml#/components/schemas/ErrorResponseDto"
+    500:
+      description: En feil oppstod
+      content:
+        application/json:
+          schema:
+            $ref: "../common/components.yaml#/components/schemas/ErrorResponseDto"
+  tags:
+    - static-pdf
+
 delete:
   summary: Sletter en statisk PDF for en språkkode
   operationId: deleteStaticPdf

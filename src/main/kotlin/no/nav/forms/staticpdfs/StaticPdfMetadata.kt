@@ -5,7 +5,6 @@ import no.nav.forms.utils.PdfLanguageCode
 import java.time.OffsetDateTime
 
 data class StaticPdfMetadata(
-	val fileId: String,
 	val fileName: String,
 	val fileSize: String,
 	val language: PdfLanguageCode,
@@ -16,7 +15,6 @@ data class StaticPdfMetadata(
 
 fun StaticPdfMetadata.toDto(): StaticPdfDto {
 	return StaticPdfDto(
-		id = this.fileId,
 		fileName = this.fileName,
 		languageCode = this.language.value,
 		createdBy = this.createdBy,

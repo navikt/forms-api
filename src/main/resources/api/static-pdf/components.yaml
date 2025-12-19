@@ -1,7 +1,5 @@
 components:
   schemas:
-    StaticPdfDbId:
-      $ref: "../common/components.yaml#/components/schemas/UUID"
     UploadPdfRequest:
       type: object
       description: Last opp en statisk PDF for et skjema og språkkode
@@ -26,8 +24,6 @@ components:
       - createdAt
       - createdBy
       properties:
-        id:
-          $ref: "#/components/schemas/StaticPdfDbId"
         languageCode:
           $ref: "../common/components.yaml#/components/schemas/LanguageCode"
         fileName:

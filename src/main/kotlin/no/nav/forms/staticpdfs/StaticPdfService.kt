@@ -7,20 +7,19 @@ import no.nav.forms.config.StaticPdfConfig
 import no.nav.forms.exceptions.ResourceNotFoundException
 import no.nav.forms.utils.PdfLanguageCode
 import org.springframework.beans.factory.annotation.Qualifier
+import org.springframework.core.io.Resource
 import org.springframework.stereotype.Service
 import org.springframework.web.multipart.MultipartFile
 import java.nio.ByteBuffer
 import java.time.OffsetDateTime
-import java.util.UUID
 
 @Service
 public class StaticPdfService(
 	private val staticPdfConfig: StaticPdfConfig,
-	@field:Qualifier("staticPdfCloudStorageClient") private val storage: Storage,
+	@field:Qualifier("cloudStorageClient") private val storage: Storage,
 ) {
 
 	fun save(file: MultipartFile, formPath: String, language: PdfLanguageCode, userId: String): StaticPdfMetadata {
-		val fileId = UUID.randomUUID().toString()
 		val fileName = file.originalFilename ?: file.name
 		val fileContent = file.resource.contentAsByteArray
 		val fileSize = fileContent.size
@@ -31,7 +30,6 @@ public class StaticPdfService(
 			.newBuilder(BlobId.of(staticPdfConfig.bucketName, blobName))
 			.setMetadata(
 				mapOf(
-					"fileId" to fileId, // TODO trenger vi egentlig en fileId i tillegg til blobNavn?
 					"formPath" to formPath,
 					"fileName" to fileName,
 					"fileSize" to fileSize.toString(),
@@ -45,7 +43,6 @@ public class StaticPdfService(
 			it.write(ByteBuffer.wrap(fileContent, 0, fileSize))
 		}
 		return StaticPdfMetadata(
-			fileId = fileId,
 			formPath = formPath,
 			fileName = fileName,
 			fileSize = fileSize.toString(),
@@ -60,7 +57,6 @@ public class StaticPdfService(
 		return blobs.iterateAll().map { blob ->
 			val createdAtString = blob.metadata?.get("createdAt")
 			StaticPdfMetadata(
-				fileId = blob.metadata?.get("fileId") ?: "-",
 				formPath = blob.metadata?.get("formPath") ?: "-",
 				fileName = blob.metadata?.get("fileName") ?: "-",
 				fileSize = blob.metadata?.get("fileSize") ?: "-",
@@ -78,6 +74,15 @@ public class StaticPdfService(
 		if (!storage.delete(blob.blobId)) {
 			throw RuntimeException("Failed to delete static PDF with blob name: $blobName")
 		}
+	}
+
+	fun getContent(formPath: String, language: PdfLanguageCode): Pair<Resource, String> {
+		val blobName = "$formPath/${language.value}"
+		val blob = storage.get(staticPdfConfig.bucketName, blobName)
+			?: throw ResourceNotFoundException("Static PDF not found", blobName)
+		val innhold = storage.readAllBytes(blob.blobId)
+		val fileName = blob.metadata?.get("fileName") ?: "$formPath-${language.value}.pdf"
+		return Pair(org.springframework.core.io.ByteArrayResource(innhold), fileName)
 	}
 
 }

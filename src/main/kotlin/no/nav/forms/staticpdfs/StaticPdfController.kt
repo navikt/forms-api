@@ -8,6 +8,7 @@ import no.nav.forms.utils.PdfLanguageCode
 import no.nav.security.token.support.core.api.ProtectedWithClaims
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import org.springframework.core.io.Resource
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.RestController
@@ -53,5 +54,12 @@ class StaticPdfController(
 		logger.info("Delete static pdf for $formPath and language code $languageCode")
 		staticPdfService.delete(formPath, PdfLanguageCode.validate(languageCode))
 		return ResponseEntity(HttpStatus.NO_CONTENT)
+	}
+
+	override fun getStaticPdf(formPath: String, languageCode: String): ResponseEntity<Resource> {
+		val (content, fileName) = staticPdfService.getContent(formPath, PdfLanguageCode.validate(languageCode))
+		return ResponseEntity.ok()
+			.header("Content-Disposition", "attachment; filename=\"$fileName\"")
+			.body(content)
 	}
 }
