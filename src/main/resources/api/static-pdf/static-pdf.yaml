@@ -28,7 +28,7 @@ post:
       content:
         application/json:
           schema:
-            $ref: "./components.yaml#/components/schemas/UploadPdfResponse"
+            $ref: "./components.yaml#/components/schemas/StaticPdfDto"
     500:
       description: Noe gikk galt under opplastingen
       content:
@@ -61,6 +61,12 @@ delete:
       description: PDF har blitt slettet
     401:
       description: Bruker er ikke autentisert
+      content:
+        application/json:
+          schema:
+            $ref: "../common/components.yaml#/components/schemas/ErrorResponseDto"
+    404:
+      description: PDF finnes ikke
       content:
         application/json:
           schema:

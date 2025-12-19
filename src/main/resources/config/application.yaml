@@ -22,6 +22,11 @@ spring:
       preprod:
       - "azure"
 
+gcp:
+  buckets:
+    static-pdfs:
+      bucket-name: ${STATIC_PDFS_BUCKET_NAME:nav-forms-api-static-pdfs-local}
+
 management:
   endpoints:
     web:

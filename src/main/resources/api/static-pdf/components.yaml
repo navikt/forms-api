@@ -1,10 +1,7 @@
 components:
   schemas:
     StaticPdfDbId:
-      type: integer
-      format: int64
-      description: PDF id i databasen
-      example: 75
+      $ref: "../common/components.yaml#/components/schemas/UUID"
     UploadPdfRequest:
       type: object
       description: Last opp en statisk PDF for et skjema og språkkode
@@ -13,31 +10,6 @@ components:
       properties:
         fileContent:
           $ref: "#/components/schemas/FileContent"
-    UploadPdfResponse:
-      #  $ref: "#/components/schemas/StaticPdfDto"
-      type: object
-      required:
-      - id
-      - languageCode
-      - fileName
-      - createdAt
-      - createdBy
-      properties:
-        id:
-          $ref: "#/components/schemas/StaticPdfDbId"
-        languageCode:
-          $ref: "../common/components.yaml#/components/schemas/LanguageCode"
-        fileName:
-          $ref: "#/components/schemas/FileName"
-        createdAt:
-          type: string
-          format: date-time
-          description: Dato og tid for når pdf ble opprettet
-          example: 2020-01-01T12:00:00Z
-        createdBy:
-          type: string
-          description: Hvem som lastet opp skjemaet
-          example: Ola Nordmann
     FileContent:
       type: string
       format: binary

@@ -11,9 +11,18 @@ services:
     volumes:
       - db:/var/lib/postgresql/data
 
+  cloud-storage:
+    image: fsouza/fake-gcs-server
+    container_name: forms-api-gcs
+    restart: always
+    entrypoint: [ "/bin/fake-gcs-server", "-data", "/data", "-scheme", "http", "-external-url", "http://localhost:5443" ]
+    ports:
+      - "5443:4443"
+
   forms-api:
     depends_on:
       - db
+      - cloud-storage
     container_name: forms-api
     mem_reservation: 4000M
     build:

@@ -31,9 +31,9 @@ testet docker image for applikasjonen.
 Dette er en hybrid måte hvor applikasjonen kobler seg til database som kjører i en docker container. Data i databasen
 overlever restart av applikasjonen.
 
-Starte databasen med docker compose:
+Starte databasen og cloud storage med docker compose:
 
-`docker compose up db`
+`docker compose up -d db cloud-storage`
 
 Deretter kjøres `no/nav/forms/FormsApiApplication.kt` med profil `docker` og `DATABASE_PORT=5442`.
 
