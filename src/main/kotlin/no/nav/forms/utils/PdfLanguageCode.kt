@@ -5,7 +5,7 @@ enum class PdfLanguageCode(val value: String) {
 	NB("nb"),
 	NN("nn"),
 	EN("en"),
-	SA("sa"),
+	SE("se"),
 	FR("fr");
 
 	companion object {
