@@ -10,6 +10,7 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.core.io.Resource
 import org.springframework.http.HttpStatus
+import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.RestController
 import org.springframework.web.multipart.MultipartFile
@@ -57,9 +58,11 @@ class StaticPdfController(
 	}
 
 	override fun getStaticPdf(formPath: String, languageCode: String): ResponseEntity<Resource> {
-		val (content, fileName) = staticPdfService.getContent(formPath, PdfLanguageCode.validate(languageCode))
+		logger.info("Download static pdf for $formPath and language code $languageCode")
+		val content = staticPdfService.getContent(formPath, PdfLanguageCode.validate(languageCode))
 		return ResponseEntity.ok()
-			.header("Content-Disposition", "attachment; filename=\"$fileName\"")
+			.contentType(MediaType.APPLICATION_PDF)
+			.contentLength(content.contentLength())
 			.body(content)
 	}
 }

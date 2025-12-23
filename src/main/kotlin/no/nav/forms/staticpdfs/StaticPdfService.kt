@@ -76,13 +76,12 @@ public class StaticPdfService(
 		}
 	}
 
-	fun getContent(formPath: String, language: PdfLanguageCode): Pair<Resource, String> {
+	fun getContent(formPath: String, language: PdfLanguageCode): Resource {
 		val blobName = "$formPath/${language.value}"
 		val blob = storage.get(staticPdfConfig.bucketName, blobName)
 			?: throw ResourceNotFoundException("Static PDF not found", blobName)
-		val innhold = storage.readAllBytes(blob.blobId)
-		val fileName = blob.metadata?.get("fileName") ?: "$formPath-${language.value}.pdf"
-		return Pair(org.springframework.core.io.ByteArrayResource(innhold), fileName)
+		val content = storage.readAllBytes(blob.blobId)
+		return org.springframework.core.io.ByteArrayResource(content)
 	}
 
 }
