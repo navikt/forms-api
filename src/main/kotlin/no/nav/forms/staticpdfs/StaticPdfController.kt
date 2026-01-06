@@ -6,6 +6,7 @@ import no.nav.forms.model.StaticPdfDto
 import no.nav.forms.security.SecurityContextHolder
 import no.nav.forms.utils.PdfLanguageCode
 import no.nav.security.token.support.core.api.ProtectedWithClaims
+import no.nav.security.token.support.core.api.Unprotected
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.core.io.Resource
@@ -16,16 +17,14 @@ import org.springframework.web.bind.annotation.RestController
 import org.springframework.web.multipart.MultipartFile
 
 @RestController
-@ProtectedWithClaims(issuer = AzureAdConfig.ISSUER, claimMap = ["${AzureAdConfig.CLAIM_NAV_IDENT}=*"])
 class StaticPdfController(
 	private val securityContextHolder: SecurityContextHolder,
 	private val staticPdfService: StaticPdfService,
 ) : StaticPdfApi {
 	private final val logger: Logger = LoggerFactory.getLogger(javaClass)
 
-	override fun getStaticPdfs(
-		formPath: String
-	): ResponseEntity<List<StaticPdfDto>> {
+	@Unprotected
+	override fun getStaticPdfs(formPath: String): ResponseEntity<List<StaticPdfDto>> {
 		logger.info("Get all static pdfs from $formPath")
 		return ResponseEntity.ok(
 			staticPdfService.getAll(formPath)
@@ -33,13 +32,14 @@ class StaticPdfController(
 		)
 	}
 
+	@ProtectedWithClaims(issuer = AzureAdConfig.ISSUER, claimMap = ["${AzureAdConfig.CLAIM_NAV_IDENT}=*"])
 	override fun uploadStaticPdf(
 		formPath: String,
 		languageCode: String,
 		fileContent: MultipartFile
 	): ResponseEntity<StaticPdfDto> {
-		logger.info("Upload static pdf for $formPath and language code $languageCode")
 		securityContextHolder.requireAdminUser()
+		logger.info("Upload static pdf for $formPath and language code $languageCode")
 		val userId = securityContextHolder.getUserName()
 		val language = PdfLanguageCode.validate(languageCode)
 		val fileMetadata = staticPdfService.save(fileContent, formPath, language, userId)
@@ -48,15 +48,16 @@ class StaticPdfController(
 			.body(fileMetadata.toDto())
 	}
 
-	override fun deleteStaticPdf(
-		formPath: String,
-		languageCode: String
-	): ResponseEntity<Unit> {
-		logger.info("Delete static pdf for $formPath and language code $languageCode")
+	@ProtectedWithClaims(issuer = AzureAdConfig.ISSUER, claimMap = ["${AzureAdConfig.CLAIM_NAV_IDENT}=*"])
+	override fun deleteStaticPdf(formPath: String, languageCode: String): ResponseEntity<Unit> {
+		securityContextHolder.requireAdminUser()
+		val userId = securityContextHolder.getUserName()
+		logger.info("Delete static pdf for $formPath and language code $languageCode (user=$userId)")
 		staticPdfService.delete(formPath, PdfLanguageCode.validate(languageCode))
 		return ResponseEntity(HttpStatus.NO_CONTENT)
 	}
 
+	@Unprotected
 	override fun getStaticPdf(formPath: String, languageCode: String): ResponseEntity<Resource> {
 		logger.info("Download static pdf for $formPath and language code $languageCode")
 		val content = staticPdfService.getContent(formPath, PdfLanguageCode.validate(languageCode))

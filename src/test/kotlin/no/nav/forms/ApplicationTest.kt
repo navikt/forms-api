@@ -1,6 +1,8 @@
 package no.nav.forms
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.google.cloud.storage.Storage
+import no.nav.forms.config.StaticPdfConfig
 import no.nav.forms.model.NewGlobalTranslationRequest
 import no.nav.forms.testutils.createMockToken
 import no.nav.forms.translations.testdata.GlobalTranslationsTestdata
@@ -32,6 +34,12 @@ abstract class ApplicationTest(val setupPublishedGlobalTranslations: Boolean = f
 	@Autowired
 	private lateinit var flyway: Flyway
 
+	@Autowired
+	private lateinit var storage: Storage
+
+	@Autowired
+	private lateinit var staticPdfConfig: StaticPdfConfig
+
 	final val baseUrl = "http://localhost:9082"
 
 	lateinit var testFormsApi: TestFormsApi
@@ -42,6 +50,9 @@ abstract class ApplicationTest(val setupPublishedGlobalTranslations: Boolean = f
 	fun setup() {
 		flyway.clean()
 		flyway.migrate()
+		storage.list(staticPdfConfig.bucketName).iterateAll().forEach {
+			storage.delete(it.blobId)
+		}
 		testFormsApi = TestFormsApi(baseUrl, restTemplate, objectMapper)
 
 		if (setupPublishedGlobalTranslations) {

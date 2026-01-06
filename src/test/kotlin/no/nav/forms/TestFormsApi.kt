@@ -2,12 +2,15 @@ package no.nav.forms
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import no.nav.forms.model.*
+import no.nav.forms.testutils.FileUtils
 import no.nav.forms.utils.LanguageCode
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.springframework.boot.test.web.client.TestRestTemplate
+import org.springframework.boot.test.web.client.exchange
 import org.springframework.core.ParameterizedTypeReference
 import org.springframework.http.*
+import org.springframework.util.LinkedMultiValueMap
 import org.springframework.util.MultiValueMap
 import kotlin.test.assertEquals
 
@@ -58,13 +61,12 @@ class TestFormsApi(
 		authToken: String? = null,
 		additionalHeaders: Map<String, String> = emptyMap()
 	): FormsApiResponse<GlobalTranslationDto> {
-		val response = restTemplate.exchange(
+		val response = restTemplate.exchange<String>(
 			globalTranslationBaseUrl,
 			HttpMethod.POST,
-			HttpEntity(request, httpHeaders(authToken, additionalHeaders)),
-			String::class.java
+			HttpEntity(request, httpHeaders(authToken, additionalHeaders))
 		)
-		val body = readGlobalTranslationBodyV2(response)
+		val body = parseSingleResponse(response, GlobalTranslationDto::class.java)
 		return FormsApiResponse(response.statusCode, body)
 	}
 
@@ -76,13 +78,12 @@ class TestFormsApi(
 		additionalHeaders: Map<String, String> = emptyMap()
 	): FormsApiResponse<GlobalTranslationDto> {
 		val headers = mapOf(formsapiEntityRevisionHeaderName to revision.toString())
-		val response = restTemplate.exchange(
+		val response = restTemplate.exchange<String>(
 			"$globalTranslationBaseUrl/$id",
 			HttpMethod.PUT,
-			HttpEntity(request, httpHeaders(authToken, headers.plus(additionalHeaders))),
-			String::class.java
+			HttpEntity(request, httpHeaders(authToken, headers.plus(additionalHeaders)))
 		)
-		val body = readGlobalTranslationBodyV2(response)
+		val body = parseSingleResponse(response, GlobalTranslationDto::class.java)
 		return FormsApiResponse(response.statusCode, body)
 	}
 
@@ -90,11 +91,10 @@ class TestFormsApi(
 		id: Long,
 		authToken: String? = null,
 	): FormsApiResponse<Unit> {
-		val response = restTemplate.exchange(
+		val response = restTemplate.exchange<String>(
 			"$globalTranslationBaseUrl/$id",
 			HttpMethod.DELETE,
-			HttpEntity(null, httpHeaders(authToken)),
-			String::class.java
+			HttpEntity(null, httpHeaders(authToken))
 		)
 		val body = if (!response.statusCode.is2xxSuccessful) Pair(null, readErrorBody(response)) else Pair(null, null)
 		return FormsApiResponse(response.statusCode, body)
@@ -106,17 +106,6 @@ class TestFormsApi(
 		return FormsApiResponse(response.statusCode, Pair(response.body!!, null))
 	}
 
-	private fun readGlobalTranslationBodyV2(response: ResponseEntity<String>): Pair<GlobalTranslationDto?, ErrorResponseDto?> {
-		if (response.statusCode.is2xxSuccessful) {
-			val body = objectMapper.readValue(
-				response.body,
-				GlobalTranslationDto::class.java
-			)!!
-			return Pair(body, null)
-		}
-		return Pair(null, objectMapper.readValue(response.body, ErrorResponseDto::class.java)!!)
-	}
-
 	private fun readErrorBody(response: ResponseEntity<String>): ErrorResponseDto {
 		return objectMapper.readValue(response.body, ErrorResponseDto::class.java)
 	}
@@ -126,9 +115,7 @@ class TestFormsApi(
 		additionalHeaders: Map<String, String>? = emptyMap()
 	): MultiValueMap<String, String> {
 		val headers = HttpHeaders()
-		if (token != null) {
-			headers.add("Authorization", "Bearer $token")
-		}
+		token?.let { headers.add("Authorization", "Bearer $it") }
 		additionalHeaders?.forEach { headers.add(it.key, it.value) }
 		return headers
 	}
@@ -138,14 +125,13 @@ class TestFormsApi(
 		request: NewFormTranslationRequestDto,
 		authToken: String? = null
 	): FormsApiResponse<FormTranslationDto> {
-		val response = restTemplate.exchange(
+		val response = restTemplate.exchange<String>(
 			"$baseUrl/v1/forms/$formPath/translations",
 			HttpMethod.POST,
-			HttpEntity(request, httpHeaders(authToken)),
-			String::class.java
+			HttpEntity(request, httpHeaders(authToken))
 		)
-		val body = readFormTranslationBody(response)
-		return FormsApiResponse<FormTranslationDto>(response.statusCode, body)
+		val body = parseSingleResponse(response, FormTranslationDto::class.java)
+		return FormsApiResponse(response.statusCode, body)
 	}
 
 	fun updateFormTranslation(
@@ -156,45 +142,30 @@ class TestFormsApi(
 		authToken: String? = null,
 	): FormsApiResponse<FormTranslationDto> {
 		val headers = mapOf(formsapiEntityRevisionHeaderName to revision.toString())
-		val response = restTemplate.exchange(
+		val response = restTemplate.exchange<String>(
 			"$baseUrl/v1/forms/$formPath/translations/$formTranslationId",
 			HttpMethod.PUT,
-			HttpEntity(request, httpHeaders(authToken, headers)),
-			String::class.java
+			HttpEntity(request, httpHeaders(authToken, headers))
 		)
-		val body = readFormTranslationBody(response)
-		return FormsApiResponse<FormTranslationDto>(response.statusCode, body)
-	}
-
-	private fun readFormTranslationBody(response: ResponseEntity<String>): Pair<FormTranslationDto?, ErrorResponseDto?> {
-		if (response.statusCode.is2xxSuccessful) {
-			val body = objectMapper.readValue(
-				response.body,
-				FormTranslationDto::class.java
-			)
-			return Pair(body, null)
-		}
-		val errorBody = objectMapper.readValue(response.body, ErrorResponseDto::class.java)
-		return Pair(null, errorBody)
+		val body = parseSingleResponse(response, FormTranslationDto::class.java)
+		return FormsApiResponse(response.statusCode, body)
 	}
 
 	fun getFormTranslations(formPath: String): FormsApiResponse<List<FormTranslationDto>> {
-		val responseType = object : ParameterizedTypeReference<List<FormTranslationDto>>() {}
-		val response = restTemplate.exchange(
+		val response = restTemplate.exchange<String>(
 			"$baseUrl/v1/forms/$formPath/translations",
 			HttpMethod.GET,
-			null,
-			responseType
+			null
 		)
-		return FormsApiResponse(response.statusCode, Pair(response.body!!, null))
+		val body = parseListResponse(response, FormTranslationDto::class.java)
+		return FormsApiResponse(response.statusCode, body)
 	}
 
 	fun publishGlobalTranslations(authToken: String?): FormsApiResponse<Unit> {
-		val response = restTemplate.exchange(
+		val response = restTemplate.exchange<String>(
 			"$baseUrl/v1/global-translations/publish",
 			HttpMethod.POST,
-			HttpEntity(null, httpHeaders(authToken)),
-			String::class.java
+			HttpEntity(null, httpHeaders(authToken))
 		)
 		val body = when {
 			response.statusCode.is2xxSuccessful -> Pair(null, null)
@@ -215,29 +186,16 @@ class TestFormsApi(
 	}
 
 	fun getGlobalTranslationPublication(languageCodeValues: List<String>? = emptyList()): FormsApiResponse<PublishedTranslationsDto> {
-		val queryString = if (languageCodeValues != null && !languageCodeValues.isEmpty()) "?languageCodes=${
+		val queryString = if (!languageCodeValues.isNullOrEmpty()) "?languageCodes=${
 			languageCodeValues.joinToString(",")
 		}" else ""
-		val response = restTemplate.exchange(
+		val response = restTemplate.exchange<String>(
 			"$baseUrl/v1/published-global-translations$queryString",
 			HttpMethod.GET,
-			HttpEntity(null, httpHeaders(null)),
-			String::class.java
+			HttpEntity(null, httpHeaders(null))
 		)
-		val body = parsePublishedTranslationsResponse(response)
+		val body = parseSingleResponse(response, PublishedTranslationsDto::class.java)
 		return FormsApiResponse(response.statusCode, body)
-	}
-
-	private fun parsePublishedTranslationsResponse(response: ResponseEntity<String>): Pair<PublishedTranslationsDto?, ErrorResponseDto?> {
-		if (response.statusCode.is2xxSuccessful) {
-			val body = objectMapper.readValue(
-				response.body,
-				PublishedTranslationsDto::class.java
-			)
-			return Pair(body, null)
-		}
-		val errorBody = objectMapper.readValue(response.body, ErrorResponseDto::class.java)
-		return Pair(null, errorBody)
 	}
 
 	fun deleteFormTranslation(
@@ -245,11 +203,10 @@ class TestFormsApi(
 		formTranslationId: Long,
 		authToken: String? = null
 	): FormsApiResponse<Unit> {
-		val response = restTemplate.exchange(
+		val response = restTemplate.exchange<String>(
 			"$baseUrl/v1/forms/$formPath/translations/$formTranslationId",
 			HttpMethod.DELETE,
-			HttpEntity(null, httpHeaders(authToken)),
-			String::class.java
+			HttpEntity(null, httpHeaders(authToken))
 		)
 		val body = when {
 			response.statusCode.is2xxSuccessful -> Pair(null, null)
@@ -258,19 +215,6 @@ class TestFormsApi(
 		return FormsApiResponse(response.statusCode, body)
 	}
 
-	private fun readFormBody(response: ResponseEntity<String>): Pair<FormDto?, ErrorResponseDto?> {
-		if (response.statusCode.is2xxSuccessful) {
-			val body = objectMapper.readValue(
-				response.body,
-				FormDto::class.java
-			)
-			return Pair(body, null)
-		}
-		val errorBody = objectMapper.readValue(response.body, ErrorResponseDto::class.java)
-		return Pair(null, errorBody)
-	}
-
-
 	private val formsBaseUrl = "$baseUrl/v1/forms"
 
 	fun createForm(
@@ -278,13 +222,12 @@ class TestFormsApi(
 		authToken: String? = null,
 		additionalHeaders: Map<String, String> = emptyMap()
 	): FormsApiResponse<FormDto> {
-		val response = restTemplate.exchange(
+		val response = restTemplate.exchange<String>(
 			formsBaseUrl,
 			HttpMethod.POST,
-			HttpEntity(request, httpHeaders(authToken, additionalHeaders)),
-			String::class.java
+			HttpEntity(request, httpHeaders(authToken, additionalHeaders))
 		)
-		val body = readFormBody(response)
+		val body = parseSingleResponse(response, FormDto::class.java)
 		return FormsApiResponse(response.statusCode, body)
 	}
 
@@ -296,13 +239,12 @@ class TestFormsApi(
 		additionalHeaders: Map<String, String> = emptyMap()
 	): FormsApiResponse<FormDto> {
 		val headers = mapOf(formsapiEntityRevisionHeaderName to revision.toString())
-		val response = restTemplate.exchange(
+		val response = restTemplate.exchange<String>(
 			"$formsBaseUrl/$formPath",
 			HttpMethod.PUT,
-			HttpEntity(request, httpHeaders(authToken, headers.plus(additionalHeaders))),
-			String::class.java
+			HttpEntity(request, httpHeaders(authToken, headers.plus(additionalHeaders)))
 		)
-		val body = readFormBody(response)
+		val body = parseSingleResponse(response, FormDto::class.java)
 		return FormsApiResponse(response.statusCode, body)
 	}
 
@@ -311,13 +253,12 @@ class TestFormsApi(
 			if (!select.isNullOrEmpty()) append("?select=$select")
 			if (includeDeleted == true) append("${if (isNotEmpty()) "&" else "?"}includeDeleted=true")
 		}
-		val response = restTemplate.exchange(
+		val response = restTemplate.exchange<String>(
 			"$formsBaseUrl/$formPath$queryString",
 			HttpMethod.GET,
-			HttpEntity(null, httpHeaders(null)),
-			String::class.java
+			HttpEntity(null, httpHeaders(null))
 		)
-		val body = readFormBody(response)
+		val body = parseSingleResponse(response, FormDto::class.java)
 		return FormsApiResponse(response.statusCode, body)
 	}
 
@@ -326,11 +267,10 @@ class TestFormsApi(
 			formRevision !== null -> mapOf(formsapiEntityRevisionHeaderName to formRevision.toString())
 			else -> emptyMap()
 		}
-		val response = restTemplate.exchange(
+		val response = restTemplate.exchange<String>(
 			"$formsBaseUrl/$formPath",
 			HttpMethod.DELETE,
-			HttpEntity(null, httpHeaders(authToken, headers)),
-			String::class.java
+			HttpEntity(null, httpHeaders(authToken, headers))
 		)
 		val body = when {
 			response.statusCode.is2xxSuccessful -> Pair(null, null)
@@ -341,12 +281,12 @@ class TestFormsApi(
 
 	fun getForms(select: String? = "", includeDeleted: Boolean? = false): FormsApiResponse<List<FormCompactDto>> {
 		val queryString = buildString {
-				if (!select.isNullOrEmpty()) append("?select=$select")
-				if (includeDeleted == true) append("${if (isNotEmpty()) "&" else "?"}includeDeleted=true")
+			if (!select.isNullOrEmpty()) append("?select=$select")
+			if (includeDeleted == true) append("${if (isNotEmpty()) "&" else "?"}includeDeleted=true")
 		}
-		val responseType = object : ParameterizedTypeReference<List<FormCompactDto>>() {}
-		val response = restTemplate.exchange("$formsBaseUrl${queryString}", HttpMethod.GET, null, responseType)
-		return FormsApiResponse(response.statusCode, Pair(response.body!!, null))
+		val response = restTemplate.exchange<String>("$formsBaseUrl${queryString}", HttpMethod.GET, null)
+		val body = parseListResponse(response, FormCompactDto::class.java)
+		return FormsApiResponse(response.statusCode, body)
 	}
 
 	private val formPublicationsBaseUrl = "$baseUrl/v1/form-publications"
@@ -364,13 +304,12 @@ class TestFormsApi(
 			languageCodes?.isNotEmpty() == true -> languageCodes.let { "?languageCodes=${it.joinToString(",") { it.name }}" }
 			else -> ""
 		}
-		val response = restTemplate.exchange(
+		val response = restTemplate.exchange<String>(
 			"$formPublicationsBaseUrl/$formPath${queryString}",
 			HttpMethod.POST,
-			HttpEntity(null, httpHeaders(authToken, headers)),
-			String::class.java
+			HttpEntity(null, httpHeaders(authToken, headers))
 		)
-		val body = readFormBody(response)
+		val body = parseSingleResponse(response, FormDto::class.java)
 		return FormsApiResponse(response.statusCode, body)
 	}
 
@@ -378,24 +317,22 @@ class TestFormsApi(
 		formPath: String,
 		authToken: String?,
 	): FormsApiResponse<Unit> {
-		val response = restTemplate.exchange(
+		val response = restTemplate.exchange<String>(
 			"$formPublicationsBaseUrl/$formPath",
 			HttpMethod.DELETE,
-			HttpEntity(null, httpHeaders(authToken)),
-			String::class.java
+			HttpEntity(null, httpHeaders(authToken))
 		)
 		val body = if (!response.statusCode.is2xxSuccessful) Pair(null, readErrorBody(response)) else Pair(null, null)
 		return FormsApiResponse(response.statusCode, body)
 	}
 
 	fun getPublishedForm(formPath: String): FormsApiResponse<FormDto> {
-		val response = restTemplate.exchange(
+		val response = restTemplate.exchange<String>(
 			"$formPublicationsBaseUrl/$formPath",
 			HttpMethod.GET,
-			HttpEntity(null, httpHeaders(null)),
-			String::class.java
+			HttpEntity(null, httpHeaders(null))
 		)
-		val body = readFormBody(response)
+		val body = parseSingleResponse(response, FormDto::class.java)
 		return FormsApiResponse(response.statusCode, body)
 	}
 
@@ -404,42 +341,128 @@ class TestFormsApi(
 		languageCodes: List<LanguageCode>? = null,
 	): FormsApiResponse<PublishedTranslationsDto> {
 		val queryString = languageCodes?.let { "?languageCodes=${it.joinToString(",") { it.name }}" } ?: ""
-		val response = restTemplate.exchange(
+		val response = restTemplate.exchange<String>(
 			"$formPublicationsBaseUrl/$formPath/translations${queryString}",
 			HttpMethod.GET,
-			HttpEntity(null, httpHeaders(null)),
-			String::class.java
+			HttpEntity(null, httpHeaders(null))
 		)
-		val body = parsePublishedTranslationsResponse(response)
+		val body = parseSingleResponse(response, PublishedTranslationsDto::class.java)
 		return FormsApiResponse(response.statusCode, body)
 	}
 
 	fun getPublishedForms(): FormsApiResponse<List<FormCompactDto>> {
-		val responseType = object : ParameterizedTypeReference<List<FormCompactDto>>() {}
-		val response = restTemplate.exchange(formPublicationsBaseUrl, HttpMethod.GET, null, responseType)
-		return FormsApiResponse(response.statusCode, Pair(response.body!!, null))
+		val response = restTemplate.exchange<String>(formPublicationsBaseUrl, HttpMethod.GET, null)
+		val body = parseListResponse(response, FormCompactDto::class.java)
+		return FormsApiResponse(response.statusCode, body)
 	}
 
-	fun lockForm(formPath: String, request: LockFormRequest, authToken: String?) : FormsApiResponse<FormDto> {
-		val response = restTemplate.exchange(
+	fun lockForm(formPath: String, request: LockFormRequest, authToken: String?): FormsApiResponse<FormDto> {
+		val response = restTemplate.exchange<String>(
 			"$formsBaseUrl/$formPath/lock",
 			HttpMethod.POST,
-			HttpEntity(request, httpHeaders(authToken)),
-			String::class.java
+			HttpEntity(request, httpHeaders(authToken))
 		)
-		val body = readFormBody(response)
+		val body = parseSingleResponse(response, FormDto::class.java)
 		return FormsApiResponse(response.statusCode, body)
 	}
 
-	fun unlockForm(formPath: String, authToken: String?) : FormsApiResponse<FormDto> {
-		val response = restTemplate.exchange(
+	fun unlockForm(formPath: String, authToken: String?): FormsApiResponse<FormDto> {
+		val response = restTemplate.exchange<String>(
 			"$formsBaseUrl/$formPath/lock",
 			HttpMethod.DELETE,
-			HttpEntity(null, httpHeaders(authToken)),
-			String::class.java
+			HttpEntity(null, httpHeaders(authToken))
 		)
-		val body = readFormBody(response)
+		val body = parseSingleResponse(response, FormDto::class.java)
 		return FormsApiResponse(response.statusCode, body)
 	}
+
+	fun getStaticPdfs(formPath: String): FormsApiResponse<List<StaticPdfDto>> {
+		val response = restTemplate.exchange<String>(
+			"$baseUrl/v1/forms/$formPath/static-pdfs",
+			HttpMethod.GET,
+			HttpEntity(null, httpHeaders(null))
+		)
+		val body = parseListResponse(response, StaticPdfDto::class.java)
+		return FormsApiResponse(response.statusCode, body)
+	}
+
+	fun uploadStaticPdf(
+		formPath: String,
+		languageCode: String,
+		fileName: String = "small.pdf",
+		authToken: String? = null,
+	): FormsApiResponse<StaticPdfDto> {
+		val headers = HttpHeaders().apply { contentType = MediaType.MULTIPART_FORM_DATA }
+		authToken?.let { headers.add(HttpHeaders.AUTHORIZATION, "Bearer $it") }
+
+		val partHeaders = HttpHeaders().apply {
+			contentType = MediaType.APPLICATION_PDF
+			setContentDispositionFormData("fileContent", fileName)
+		}
+		val filePart = HttpEntity(FileUtils.loadBytes(fileName), partHeaders)
+		val requestBody: MultiValueMap<String, Any> = LinkedMultiValueMap<String, Any>().apply {
+			add("fileContent", filePart)
+		}
+		val httpEntity = HttpEntity(requestBody, headers)
+
+		val response = restTemplate.exchange<String>(
+			"$baseUrl/v1/forms/$formPath/static-pdfs/$languageCode",
+			HttpMethod.POST,
+			httpEntity
+		)
+		val body = parseSingleResponse(response, StaticPdfDto::class.java)
+		return FormsApiResponse(response.statusCode, body)
+	}
+
+	fun deleteStaticPdf(formPath: String, languageCode: String, authToken: String? = null): FormsApiResponse<Unit> {
+		val response = restTemplate.exchange<String>(
+			"$baseUrl/v1/forms/$formPath/static-pdfs/$languageCode",
+			HttpMethod.DELETE,
+			HttpEntity(null, httpHeaders(authToken))
+		)
+		val body = when {
+			response.statusCode.is2xxSuccessful -> Pair(null, null)
+			else -> Pair(null, readErrorBody(response))
+		}
+		return FormsApiResponse(response.statusCode, body)
+	}
+
+	fun getStaticPdfContent(
+		formPath: String,
+		languageCode: String,
+		authToken: String? = null,
+	): FormsApiResponse<ByteArray> {
+		val response = restTemplate.exchange<ByteArray>(
+			"$baseUrl/v1/forms/$formPath/static-pdfs/$languageCode",
+			HttpMethod.GET,
+			HttpEntity(null, httpHeaders(authToken))
+		)
+		val body = if (response.statusCode.is2xxSuccessful) Pair(response.body, null)
+		else Pair(
+			null,
+			readErrorBody(ResponseEntity(String(response.body ?: ByteArray(0)), response.headers, response.statusCode))
+		)
+		return FormsApiResponse(response.statusCode, body)
+	}
+
+	private fun <T> parseListResponse(
+		response: ResponseEntity<String>,
+		clazz: Class<T>
+	): Pair<List<T>?, ErrorResponseDto?> =
+		if (response.statusCode.is2xxSuccessful)
+			Pair(
+				objectMapper.readValue(
+					response.body,
+					objectMapper.typeFactory.constructCollectionType(List::class.java, clazz)
+				), null
+			)
+		else
+			Pair(null, objectMapper.readValue(response.body, ErrorResponseDto::class.java))
+
+	private fun <T> parseSingleResponse(response: ResponseEntity<String>, clazz: Class<T>): Pair<T?, ErrorResponseDto?> =
+		if (response.statusCode.is2xxSuccessful)
+			Pair(objectMapper.readValue(response.body, clazz), null)
+		else
+			Pair(null, objectMapper.readValue(response.body, ErrorResponseDto::class.java))
 
 }
