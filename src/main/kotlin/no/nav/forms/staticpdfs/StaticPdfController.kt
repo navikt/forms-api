@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RestController
 import org.springframework.web.multipart.MultipartFile
 
 @RestController
+@ProtectedWithClaims(issuer = AzureAdConfig.ISSUER, claimMap = ["${AzureAdConfig.CLAIM_NAV_IDENT}=*"])
 class StaticPdfController(
 	private val securityContextHolder: SecurityContextHolder,
 	private val staticPdfService: StaticPdfService,
@@ -32,7 +33,6 @@ class StaticPdfController(
 		)
 	}
 
-	@ProtectedWithClaims(issuer = AzureAdConfig.ISSUER, claimMap = ["${AzureAdConfig.CLAIM_NAV_IDENT}=*"])
 	override fun uploadStaticPdf(
 		formPath: String,
 		languageCode: String,
@@ -48,7 +48,6 @@ class StaticPdfController(
 			.body(fileMetadata.toDto())
 	}
 
-	@ProtectedWithClaims(issuer = AzureAdConfig.ISSUER, claimMap = ["${AzureAdConfig.CLAIM_NAV_IDENT}=*"])
 	override fun deleteStaticPdf(formPath: String, languageCode: String): ResponseEntity<Unit> {
 		securityContextHolder.requireAdminUser()
 		val userId = securityContextHolder.getUserName()
