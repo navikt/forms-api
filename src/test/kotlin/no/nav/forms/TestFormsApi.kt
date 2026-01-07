@@ -437,11 +437,13 @@ class TestFormsApi(
 			HttpMethod.GET,
 			HttpEntity(null, httpHeaders(authToken))
 		)
-		val body = if (response.statusCode.is2xxSuccessful) Pair(response.body, null)
-		else Pair(
-			null,
-			readErrorBody(ResponseEntity(String(response.body ?: ByteArray(0)), response.headers, response.statusCode))
-		)
+		val body = when {
+			response.statusCode.is2xxSuccessful -> Pair(response.body, null)
+			else -> Pair(
+				null,
+				readErrorBody(ResponseEntity(String(response.body ?: ByteArray(0)), response.headers, response.statusCode))
+			)
+		}
 		return FormsApiResponse(response.statusCode, body)
 	}
 
@@ -449,20 +451,21 @@ class TestFormsApi(
 		response: ResponseEntity<String>,
 		clazz: Class<T>
 	): Pair<List<T>?, ErrorResponseDto?> =
-		if (response.statusCode.is2xxSuccessful)
-			Pair(
+		when {
+			response.statusCode.is2xxSuccessful -> Pair(
 				objectMapper.readValue(
 					response.body,
 					objectMapper.typeFactory.constructCollectionType(List::class.java, clazz)
 				), null
 			)
-		else
-			Pair(null, objectMapper.readValue(response.body, ErrorResponseDto::class.java))
+
+			else -> Pair(null, objectMapper.readValue(response.body, ErrorResponseDto::class.java))
+		}
 
 	private fun <T> parseSingleResponse(response: ResponseEntity<String>, clazz: Class<T>): Pair<T?, ErrorResponseDto?> =
-		if (response.statusCode.is2xxSuccessful)
-			Pair(objectMapper.readValue(response.body, clazz), null)
-		else
-			Pair(null, objectMapper.readValue(response.body, ErrorResponseDto::class.java))
+		when {
+			response.statusCode.is2xxSuccessful -> Pair(objectMapper.readValue(response.body, clazz), null)
+			else -> Pair(null, objectMapper.readValue(response.body, ErrorResponseDto::class.java))
+		}
 
 }
