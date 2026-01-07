@@ -62,7 +62,7 @@ class StaticPdfController(
 		logger.info("Download static pdf for $formPath and language code $languageCode")
 		val content = staticPdfService.getContent(formPath, PdfLanguageCode.validate(languageCode))
 		return ResponseEntity.ok()
-			.contentType(MediaType.APPLICATION_PDF)
+			.contentType(MediaType.APPLICATION_OCTET_STREAM)
 			.contentLength(content.contentLength())
 			.body(content)
 	}

@@ -60,7 +60,7 @@ get:
     200:
       description: PDF for gitt språkkode
       content:
-        application/pdf:
+        application/octet-stream:
           schema:
             $ref: "./components.yaml#/components/schemas/FileContent"
     401:
