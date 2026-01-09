@@ -22,8 +22,20 @@ post:
         application/json:
           schema:
             $ref: "./components.yaml#/components/schemas/FormDto"
+    400:
+      description: Skjemaet er ikke publisert
+      content:
+        application/json:
+          schema:
+            $ref: "../common/components.yaml#/components/schemas/ErrorResponseDto"
     404:
       description: Finner ikke skjema med gitt id
+      content:
+        application/json:
+          schema:
+            $ref: "../common/components.yaml#/components/schemas/ErrorResponseDto"
+    409:
+      description: Det finnes nyere revisjoner av skjemaet
       content:
         application/json:
           schema:
