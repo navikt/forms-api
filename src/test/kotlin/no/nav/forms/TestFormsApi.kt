@@ -447,6 +447,21 @@ class TestFormsApi(
 		return FormsApiResponse(response.statusCode, body)
 	}
 
+	fun resetForm(
+		formPath: String,
+		revision: Int?,
+		authToken: String?,
+	): FormsApiResponse<FormDto> {
+		val headers = mapOf(formsapiEntityRevisionHeaderName to revision.toString())
+		val response = restTemplate.exchange<String>(
+			"$formsBaseUrl/$formPath/reset",
+			HttpMethod.POST,
+			HttpEntity(null, httpHeaders(authToken, headers))
+		)
+		val body = parseSingleResponse(response, FormDto::class.java)
+		return FormsApiResponse(response.statusCode, body)
+	}
+
 	private fun <T> parseListResponse(
 		response: ResponseEntity<String>,
 		clazz: Class<T>

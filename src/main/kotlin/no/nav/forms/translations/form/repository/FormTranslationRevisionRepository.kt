@@ -5,4 +5,8 @@ import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.stereotype.Repository
 
 @Repository
-interface FormTranslationRevisionRepository: JpaRepository<FormTranslationRevisionEntity, Long>
+interface FormTranslationRevisionRepository: JpaRepository<FormTranslationRevisionEntity, Long> {
+
+	fun deleteAllByFormTranslationIdAndRevisionGreaterThan(formTranslationId: Long, revision: Int): Int
+
+}

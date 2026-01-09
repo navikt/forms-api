@@ -5,6 +5,8 @@ import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.stereotype.Repository
 
 @Repository
-interface FormRevisionRepository: JpaRepository<FormRevisionEntity, Long> {
+interface FormRevisionRepository : JpaRepository<FormRevisionEntity, Long> {
+
+	fun deleteAllByFormPathAndRevisionGreaterThan(formPath: String, revision: Int): Int
 
 }

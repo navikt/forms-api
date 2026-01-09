@@ -99,4 +99,11 @@ class EditFormsController(
 		return ResponseEntity.status(HttpStatus.NO_CONTENT).build()
 	}
 
+	override fun resetForm(formPath: String, formsapiEntityRevision: Int): ResponseEntity<FormDto> {
+		securityContextHolder.requireValidUser()
+		val userId = securityContextHolder.getUserName()
+		val form = editFormsService.discardChangesSinceLastPublication(formPath, formsapiEntityRevision, userId)
+		return ResponseEntity.ok(form)
+	}
+
 }
