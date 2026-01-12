@@ -60,11 +60,15 @@ spec:
         diskAutoresize: true
         databases:
           - name: {{ database.name }}
+    buckets:
+      - name: "{{ buckets.static-pdfs.name }}"
   env:
     - name: JDK_JAVA_OPTIONS
       value: "-Xms1g -XX:MaxRAMPercentage=80"
     - name: SPRING_PROFILES_ACTIVE
       value: {{ spring-profiles-active }}
+    - name: STATIC_PDFS_BUCKET_NAME
+      value: "{{ buckets.static-pdfs.name }}"
     {{#each azure.ad_groups}}
     - name: "FORMS_API_AD_GROUP_{{this.type}}"
       value: "{{this.id}}"

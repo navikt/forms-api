@@ -4,6 +4,9 @@ ingresses:
 database:
   name: forms-api-preprod-db
   tier: db-g1-small
+buckets:
+  static-pdfs:
+    name: "nav-forms-api-static-pdfs-preprod"
 accessPolicy:
   inbound:
     rules:

@@ -4,6 +4,10 @@ server:
 spring:
   application:
     name: forms-api
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 100MB
   jackson:
     default-property-inclusion: non_null
     serialization:
@@ -21,6 +25,11 @@ spring:
       - "azure"
       preprod:
       - "azure"
+
+gcp:
+  buckets:
+    static-pdfs:
+      bucket-name: ${STATIC_PDFS_BUCKET_NAME:nav-forms-api-static-pdfs-local}
 
 management:
   endpoints:
