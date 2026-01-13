@@ -627,6 +627,11 @@ class EditFormsControllerTest : ApplicationTest(setupPublishedGlobalTranslations
 		)
 			.assertSuccess()
 			.body
+		// Create new translation only used in revision 3
+		val tRequest3 =
+			NewFormTranslationRequestDto(key = "Tittel 3", nb = "Tittel 3 (nb)", nn = "Tittel 3 (nn)", en = "Title 3")
+		testFormsApi.createFormTranslation(formPath, tRequest3, authToken)
+			.assertSuccess()
 
 		// Update and then delete translation only used in revision 2
 		testFormsApi.updateFormTranslation(
@@ -650,11 +655,16 @@ class EditFormsControllerTest : ApplicationTest(setupPublishedGlobalTranslations
 		testFormsApi.getFormTranslations(formPath)
 			.assertSuccess()
 			.body.let { translations ->
+				// Translation used in revision 2 should be restored
 				val t = translations.find { it.key == formRev2.title }
 				assertEquals("Tittel 2", t?.key)
 				assertEquals("Tittel 2 (nb)", t?.nb)
 				assertEquals("Tittel 2 (nn)", t?.nn)
 				assertEquals("Title 2", t?.en)
+
+				// Translation only used in revision 3 should be gone
+				val t3 = translations.find { it.key == formRev3.title }
+				assertNull(t3)
 			}
 
 		// Verify published translations are intact

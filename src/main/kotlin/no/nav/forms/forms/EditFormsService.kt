@@ -19,6 +19,7 @@ import no.nav.forms.forms.utils.toDto
 import no.nav.forms.forms.utils.toFormCompactDto
 import no.nav.forms.model.FormCompactDto
 import no.nav.forms.model.FormDto
+import no.nav.forms.translations.form.repository.FormTranslationRepository
 import no.nav.forms.translations.form.repository.FormTranslationRevisionRepository
 import no.nav.forms.utils.Skjemanummer
 import no.nav.forms.utils.toFormPath
@@ -34,6 +35,7 @@ class EditFormsService(
 	val formRepository: FormRepository,
 	val formRevisionRepository: FormRevisionRepository,
 	val formPublicationRepository: FormPublicationRepository,
+	val formTranslationRepository: FormTranslationRepository,
 	val formTranslationRevisionRepository: FormTranslationRevisionRepository,
 	val formAttributeRepository: FormAttributeRepository,
 	val formViewRepository: FormViewRepository,
@@ -305,6 +307,18 @@ class EditFormsService(
 				if (deleteCount > 0) {
 					logger.debug("Deleting $deleteCount translation revision(s) created since last publication for form $formPath [translation id ${formTranslation.id}]")
 				}
+			}
+		}
+
+		// Soft-delete any form translations created since last publication
+		formTranslationRepository.updateDeletedAtAndDeletedWhenCreatedAtGreaterThan(
+			formPath,
+			formPublication.createdAt,
+			LocalDateTime.now(),
+			userId
+		).also { deleteCount ->
+			if (deleteCount > 0) {
+				logger.debug("Deleting (soft) $deleteCount form translation(s) for form $formPath created after last publication")
 			}
 		}
 
