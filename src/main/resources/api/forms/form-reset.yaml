@@ -1,4 +1,4 @@
-post:
+delete:
   summary: Resetter skjema til sist publiserte versjon
   operationId: resetForm
   security: []

@@ -455,7 +455,7 @@ class TestFormsApi(
 		val headers = mapOf(formsapiEntityRevisionHeaderName to revision.toString())
 		val response = restTemplate.exchange<String>(
 			"$formsBaseUrl/$formPath/reset",
-			HttpMethod.POST,
+			HttpMethod.DELETE,
 			HttpEntity(null, httpHeaders(authToken, headers))
 		)
 		val body = parseSingleResponse(response, FormDto::class.java)
