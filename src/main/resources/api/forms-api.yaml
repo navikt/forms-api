@@ -46,6 +46,9 @@ paths:
   /v1/forms/{formPath}:
     $ref: "./forms/form.yaml"
 
+  /v1/forms/{formPath}/reset:
+    $ref: "./forms/form-reset.yaml"
+
   /v1/forms/{formPath}/lock:
     $ref: "./forms/form-lock.yaml"
 

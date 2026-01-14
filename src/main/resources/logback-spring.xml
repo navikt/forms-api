@@ -25,6 +25,7 @@
 			</layout>
 		</appender>
 
+		<logger name="no.nav.forms" level="debug"/>
 		<logger name="org.springframework.data" level="debug"/>
 		<logger name="org.hibernate.sql" level="debug"/>
 
