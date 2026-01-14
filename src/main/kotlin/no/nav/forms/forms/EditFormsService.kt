@@ -8,10 +8,7 @@ import no.nav.forms.exceptions.DuplicateResourceException
 import no.nav.forms.exceptions.InvalidRevisionException
 import no.nav.forms.exceptions.LockedResourceException
 import no.nav.forms.exceptions.ResourceNotFoundException
-import no.nav.forms.forms.repository.FormAttributeRepository
-import no.nav.forms.forms.repository.FormRepository
-import no.nav.forms.forms.repository.FormRevisionRepository
-import no.nav.forms.forms.repository.FormViewRepository
+import no.nav.forms.forms.repository.*
 import no.nav.forms.forms.repository.entity.FormAttributeEntity
 import no.nav.forms.forms.repository.entity.FormAttributeName.*
 import no.nav.forms.forms.repository.entity.FormEntity
@@ -22,6 +19,8 @@ import no.nav.forms.forms.utils.toDto
 import no.nav.forms.forms.utils.toFormCompactDto
 import no.nav.forms.model.FormCompactDto
 import no.nav.forms.model.FormDto
+import no.nav.forms.translations.form.repository.FormTranslationRepository
+import no.nav.forms.translations.form.repository.FormTranslationRevisionRepository
 import no.nav.forms.utils.Skjemanummer
 import no.nav.forms.utils.toFormPath
 import org.slf4j.Logger
@@ -35,6 +34,9 @@ import kotlin.jvm.optionals.getOrElse
 class EditFormsService(
 	val formRepository: FormRepository,
 	val formRevisionRepository: FormRevisionRepository,
+	val formPublicationRepository: FormPublicationRepository,
+	val formTranslationRepository: FormTranslationRepository,
+	val formTranslationRevisionRepository: FormTranslationRevisionRepository,
 	val formAttributeRepository: FormAttributeRepository,
 	val formViewRepository: FormViewRepository,
 	val entityManager: EntityManager,
@@ -100,7 +102,7 @@ class EditFormsService(
 	}
 
 	@Transactional(Transactional.TxType.SUPPORTS)
-	fun getForm(formPath: String, listOfProperties: List<String>? = null, includeDeleted: Boolean): FormDto {
+	fun getForm(formPath: String, listOfProperties: List<String>? = null, includeDeleted: Boolean = false): FormDto {
 		val form = when {
 			includeDeleted -> formRepository.findByPath(formPath)
 			else -> formRepository.findByPathAndDeletedAtIsNull(formPath)
@@ -267,5 +269,60 @@ class EditFormsService(
 			throw InvalidRevisionException("Unexpected form revision: $revision")
 		}
 		formRepository.deleteForm(LocalDateTime.now(), userId, formPath)
+	}
+
+	@Transactional
+	fun discardChangesSinceLastPublication(formPath: String, revision: Int, userId: String): FormDto {
+		logger.info("Will discard changes since last publication for $formPath (user: $userId)")
+		val form = formViewRepository.findByPathAndDeletedAtIsNull(formPath)
+			?: throw ResourceNotFoundException("Form not found", formPath)
+		if (form.revision != revision) {
+			throw InvalidRevisionException("Unexpected form revision: $revision")
+		}
+		val formPublication = formPublicationRepository.findFirstByFormRevisionFormPathOrderByCreatedAtDesc(formPath)
+			?: throw IllegalArgumentException("Form $formPath is not published")
+		val publishedFormRevision = formRevisionRepository.findById(form.publishedRevisionId!!)
+			.getOrElse { throw IllegalStateException("Failed to load published revision (${formPath})") }
+
+		// Delete all form revisions created since last publication
+		formRevisionRepository.deleteAllByFormPathAndRevisionGreaterThan(formPath, publishedFormRevision.revision)
+			.also { deleteCount ->
+				if (deleteCount > 0) {
+					logger.debug("Deleted $deleteCount form revision(s) created since last publication for form $formPath")
+				}
+			}
+
+		// Restore form translations to published state
+		formPublication.publishedFormTranslation.formTranslationRevisions.forEach { publishedRev ->
+			val formTranslation = publishedRev.formTranslation
+			if (formTranslation.deletedAt != null) {
+				logger.debug("Restoring deleted translation for form $formPath [translation id ${formTranslation.id}]")
+				formTranslation.deletedAt = null
+				formTranslation.deletedBy = null
+			}
+			formTranslationRevisionRepository.deleteAllByFormTranslationIdAndRevisionGreaterThan(
+				formTranslation.id!!,
+				publishedRev.revision
+			).also { deleteCount ->
+				if (deleteCount > 0) {
+					logger.debug("Deleting $deleteCount translation revision(s) created since last publication for form $formPath [translation id ${formTranslation.id}]")
+				}
+			}
+		}
+
+		// Soft-delete any form translations created since last publication
+		formTranslationRepository.updateDeletedAtAndDeletedWhenCreatedAtGreaterThan(
+			formPath,
+			formPublication.createdAt,
+			LocalDateTime.now(),
+			userId
+		).also { deleteCount ->
+			if (deleteCount > 0) {
+				logger.debug("Deleting (soft) $deleteCount form translation(s) for form $formPath created after last publication")
+			}
+		}
+
+		logger.info("Form $formPath has been reset to published revision ${publishedFormRevision.revision}")
+		return getForm(formPath)
 	}
 }

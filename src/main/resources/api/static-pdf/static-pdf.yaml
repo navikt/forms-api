@@ -1,0 +1,127 @@
+post:
+  summary: Last opp eller oppdater en statisk PDF for en språkkode
+  operationId: uploadStaticPdf
+  security:
+  - bearerAuth: []
+  parameters:
+    - name: formPath
+      in: path
+      description: Skjemaets path
+      required: true
+      schema:
+        $ref: "../forms/components.yaml#/components/schemas/FormPath"
+    - name: languageCode
+      in: path
+      description: Språkkode
+      required: true
+      schema:
+        $ref: "../common/components.yaml#/components/schemas/LanguageCode"
+  requestBody:
+   content:
+     multipart/form-data:
+       schema:
+         $ref: "./components.yaml#/components/schemas/UploadPdfRequest"
+   required: true
+  responses:
+    201:
+      description: PDF er lastet opp
+      content:
+        application/json:
+          schema:
+            $ref: "./components.yaml#/components/schemas/StaticPdfDto"
+    500:
+      description: Noe gikk galt under opplastingen
+      content:
+        application/json:
+          schema:
+            $ref: "../common/components.yaml#/components/schemas/ErrorResponseDto"
+  tags:
+    - static-pdf
+
+get:
+  summary: Henter en statisk PDF for en språkkode
+  operationId: getStaticPdf
+  security:
+  - bearerAuth: []
+  parameters:
+    - name: formPath
+      in: path
+      description: Skjemaets path
+      required: true
+      schema:
+        $ref: "../forms/components.yaml#/components/schemas/FormPath"
+    - name: languageCode
+      in: path
+      description: Språkkode
+      required: true
+      schema:
+        $ref: "../common/components.yaml#/components/schemas/LanguageCode"
+  responses:
+    200:
+      description: PDF for gitt språkkode
+      content:
+        application/octet-stream:
+          schema:
+            $ref: "./components.yaml#/components/schemas/FileContent"
+    401:
+      description: Bruker er ikke autentisert
+      content:
+        application/json:
+          schema:
+            $ref: "../common/components.yaml#/components/schemas/ErrorResponseDto"
+    404:
+      description: PDF finnes ikke
+      content:
+        application/json:
+          schema:
+            $ref: "../common/components.yaml#/components/schemas/ErrorResponseDto"
+    500:
+      description: En feil oppstod
+      content:
+        application/json:
+          schema:
+            $ref: "../common/components.yaml#/components/schemas/ErrorResponseDto"
+  tags:
+    - static-pdf
+
+delete:
+  summary: Sletter en statisk PDF for en språkkode
+  operationId: deleteStaticPdf
+  security:
+  - bearerAuth: []
+  parameters:
+    - name: formPath
+      in: path
+      description: Skjemaets path
+      required: true
+      schema:
+        $ref: "../forms/components.yaml#/components/schemas/FormPath"
+    - name: languageCode
+      in: path
+      description: Språkkode
+      required: true
+      schema:
+        $ref: "../common/components.yaml#/components/schemas/LanguageCode"
+  responses:
+    204:
+      description: PDF har blitt slettet
+    401:
+      description: Bruker er ikke autentisert
+      content:
+        application/json:
+          schema:
+            $ref: "../common/components.yaml#/components/schemas/ErrorResponseDto"
+    404:
+      description: PDF finnes ikke
+      content:
+        application/json:
+          schema:
+            $ref: "../common/components.yaml#/components/schemas/ErrorResponseDto"
+    500:
+      description: En feil oppstod
+      content:
+        application/json:
+          schema:
+            $ref: "../common/components.yaml#/components/schemas/ErrorResponseDto"
+  tags:
+    - static-pdf

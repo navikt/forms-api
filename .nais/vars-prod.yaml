@@ -5,6 +5,9 @@ ingresses:
 database:
   name: forms-api-db
   tier: db-custom-1-3840
+buckets:
+  static-pdfs:
+    name: "nav-forms-api-static-pdfs-prod"
 accessPolicy:
   inbound:
     rules:

@@ -30,3 +30,25 @@ fun MockOAuth2Server.createMockToken(
 		)
 	).serialize()
 }
+
+fun MockOAuth2Server.createAdminToken(
+	navIdent: String = "A123456",
+	userName: String = "Testesen, Test",
+): String {
+	return createMockToken(
+		navIdent = navIdent,
+		userName = userName,
+		groups = listOf(MOCK_USER_GROUP_ID, MOCK_ADMIN_GROUP_ID)
+	)
+}
+
+fun MockOAuth2Server.createUserToken(
+	navIdent: String = "A123456",
+	userName: String = "Testesen, Test",
+): String {
+	return createMockToken(
+		navIdent = navIdent,
+		userName = userName,
+		groups = listOf(MOCK_USER_GROUP_ID)
+	)
+}

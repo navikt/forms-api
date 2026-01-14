@@ -1,0 +1,44 @@
+delete:
+  summary: Resetter skjema til sist publiserte versjon
+  operationId: resetForm
+  security: []
+  parameters:
+    - name: formPath
+      in: path
+      description: Skjemaets path
+      required: true
+      schema:
+        $ref: "./components.yaml#/components/schemas/FormPath"
+    - name: Formsapi-Entity-Revision
+      in: header
+      description: Gjeldende revisjon. Hvis det finnes nyere revisjoner, vil slettingen feile.
+      required: true
+      schema:
+        $ref: "./components.yaml#/components/schemas/FormRevision"
+  responses:
+    200:
+      description: Returnerer skjemadefinisjonen etter reset
+      content:
+        application/json:
+          schema:
+            $ref: "./components.yaml#/components/schemas/FormDto"
+    400:
+      description: Skjemaet er ikke publisert
+      content:
+        application/json:
+          schema:
+            $ref: "../common/components.yaml#/components/schemas/ErrorResponseDto"
+    404:
+      description: Finner ikke skjema med gitt id
+      content:
+        application/json:
+          schema:
+            $ref: "../common/components.yaml#/components/schemas/ErrorResponseDto"
+    409:
+      description: Det finnes nyere revisjoner av skjemaet
+      content:
+        application/json:
+          schema:
+            $ref: "../common/components.yaml#/components/schemas/ErrorResponseDto"
+  tags:
+    - edit-forms

@@ -1,0 +1,35 @@
+get:
+  summary: Hent alle statiske PDFer for et skjema
+  operationId: getStaticPdfs
+  security:
+  - bearerAuth: []
+  parameters:
+    - name: formPath
+      in: path
+      description: Skjemaets path
+      required: true
+      schema:
+        $ref: "../forms/components.yaml#/components/schemas/FormPath"
+  responses:
+    '200':
+      description: Statiske PDFer for skjemaet
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              $ref: "./components.yaml#/components/schemas/StaticPdfDto"
+    401:
+      description: Bruker er ikke autentisert
+      content:
+        application/json:
+          schema:
+            $ref: "../common/components.yaml#/components/schemas/ErrorResponseDto"
+    '500':
+      description: En feil oppstod
+      content:
+        application/json:
+          schema:
+            $ref: "../common/components.yaml#/components/schemas/ErrorResponseDto"
+  tags:
+    - static-pdf

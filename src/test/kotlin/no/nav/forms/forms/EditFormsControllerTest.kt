@@ -3,9 +3,13 @@ package no.nav.forms.forms
 import no.nav.forms.ApplicationTest
 import no.nav.forms.exceptions.db.DbError
 import no.nav.forms.model.LockFormRequest
+import no.nav.forms.model.NewFormTranslationRequestDto
+import no.nav.forms.model.UpdateFormTranslationRequest
 import no.nav.forms.testutils.createMockToken
 import no.nav.forms.testutils.FormsTestdata
 import no.nav.forms.testutils.MOCK_USER_GROUP_ID
+import no.nav.forms.testutils.createUserToken
+import no.nav.forms.utils.LanguageCode
 import no.nav.forms.utils.toFormPath
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -581,6 +585,113 @@ class EditFormsControllerTest : ApplicationTest(setupPublishedGlobalTranslations
 				assertNull(it.components)
 				assertNotNull(it.introPage)
 				assertEquals(introPage, it.introPage)
+			}
+	}
+
+	@Test
+	fun testResetFormToPublishedRevisionIncludingFormTranslations() {
+		val authToken = mockOAuth2Server.createUserToken()
+		val createRequest = FormsTestdata.newFormRequest(title = "Tittel 1")
+		val formRev1 = testFormsApi.createForm(createRequest, authToken)
+			.assertSuccess()
+			.body
+		val formPath = formRev1.path!!
+		val tRequest1 =
+			NewFormTranslationRequestDto(key = "Tittel 1", nb = "Tittel 1 (nb)", nn = "Tittel 1 (nn)", en = "Title 1")
+		testFormsApi.createFormTranslation(formPath, tRequest1, authToken)
+			.assertSuccess()
+			.body
+
+		val formRev2 = testFormsApi.updateForm(
+			formPath,
+			formRev1.revision!!,
+			FormsTestdata.updateFormRequest(title = "Tittel 2"),
+			authToken
+		)
+			.assertSuccess()
+			.body
+		val tRequest2 =
+			NewFormTranslationRequestDto(key = "Tittel 2", nb = "Tittel 2 (nb)", nn = "Tittel 2 (nn)", en = "Title 2")
+		val t2 = testFormsApi.createFormTranslation(formPath, tRequest2, authToken)
+			.assertSuccess()
+			.body
+
+		testFormsApi.publishForm(formPath, formRev2.revision!!, authToken, LanguageCode.entries)
+			.assertSuccess()
+
+		val formRev3 = testFormsApi.updateForm(
+			formPath,
+			formRev2.revision,
+			FormsTestdata.updateFormRequest(title = "Tittel 3"),
+			authToken
+		)
+			.assertSuccess()
+			.body
+		// Create new translation only used in revision 3
+		val tRequest3 =
+			NewFormTranslationRequestDto(key = "Tittel 3", nb = "Tittel 3 (nb)", nn = "Tittel 3 (nn)", en = "Title 3")
+		testFormsApi.createFormTranslation(formPath, tRequest3, authToken)
+			.assertSuccess()
+
+		// Update and then delete translation only used in revision 2
+		testFormsApi.updateFormTranslation(
+			formPath, t2.id, t2.revision!!, UpdateFormTranslationRequest(
+				nb = "T2 (nb)", nn = "T2 (nn)", en = "T2 (en)"
+			), authToken
+		)
+			.assertSuccess()
+		testFormsApi.deleteFormTranslation(formPath, t2.id, authToken)
+			.assertSuccess()
+
+		// Reset to published revision
+		testFormsApi.resetForm(formPath, formRev3.revision, authToken)
+			.assertSuccess()
+			.body.let {
+				assertEquals(2, it.revision)
+				assertEquals("Tittel 2", it.title)
+			}
+
+		// Verify form translations are restored to published state
+		testFormsApi.getFormTranslations(formPath)
+			.assertSuccess()
+			.body.let { translations ->
+				// Translation used in revision 2 should be restored
+				val t = translations.find { it.key == formRev2.title }
+				assertEquals("Tittel 2", t?.key)
+				assertEquals("Tittel 2 (nb)", t?.nb)
+				assertEquals("Tittel 2 (nn)", t?.nn)
+				assertEquals("Title 2", t?.en)
+
+				// Translation only used in revision 3 should be gone
+				val t3 = translations.find { it.key == formRev3.title }
+				assertNull(t3)
+			}
+
+		// Verify published translations are intact
+		testFormsApi.getPublishedFormTranslations(formPath, LanguageCode.entries)
+			.assertSuccess()
+			.body.let { data ->
+				val nbTranslations = data.translations?.get("nb")
+				assertEquals("Tittel 2 (nb)", nbTranslations?.get("Tittel 2"))
+				val nnTranslations = data.translations?.get("nn")
+				assertEquals("Tittel 2 (nn)", nnTranslations?.get("Tittel 2"))
+				val enTranslations = data.translations?.get("en")
+				assertEquals("Title 2", enTranslations?.get("Tittel 2"))
+			}
+	}
+
+	@Test
+	fun testResetFormWhenNotPublished() {
+		val authToken = mockOAuth2Server.createUserToken()
+		val createRequest = FormsTestdata.newFormRequest(title = "Tittel 1")
+		val formRev1 = testFormsApi.createForm(createRequest, authToken)
+			.assertSuccess()
+			.body
+		val formPath = formRev1.path!!
+		testFormsApi.resetForm(formPath, formRev1.revision!!, authToken)
+			.assertHttpStatus(HttpStatus.BAD_REQUEST)
+			.errorBody.let {
+				assertEquals("Form $formPath is not published", it.errorMessage)
 			}
 	}
 

@@ -24,6 +24,8 @@ tags:
     description: Vedlikehold av skjemadefinisjoner
   - name: form-publications
     description: Publisering av skjemadefinisjoner
+  - name: static-pdf
+    description: Statiske PDFer for skjemaer
 
 paths:
   /v1/recipients:
@@ -43,6 +45,9 @@ paths:
 
   /v1/forms/{formPath}:
     $ref: "./forms/form.yaml"
+
+  /v1/forms/{formPath}/reset:
+    $ref: "./forms/form-reset.yaml"
 
   /v1/forms/{formPath}/lock:
     $ref: "./forms/form-lock.yaml"
@@ -76,3 +81,9 @@ paths:
 
   /v1/forms/{formPath}/translations/{id}:
     $ref: "./form-translations/form-translation.yaml"
+
+  /v1/forms/{formPath}/static-pdfs:
+    $ref: "./static-pdf/static-pdfs.yaml"
+
+  /v1/forms/{formPath}/static-pdfs/{languageCode}:
+    $ref: "./static-pdf/static-pdf.yaml"

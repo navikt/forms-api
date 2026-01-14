@@ -27,6 +27,18 @@
 		<url/>
 	</scm>
 
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<groupId>com.google.cloud</groupId>
+				<artifactId>libraries-bom</artifactId>
+				<version>26.72.0</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
+
 	<properties>
 		<java.version>21</java.version>
 		<kotlin.version>2.3.0</kotlin.version>
@@ -160,6 +172,17 @@
 			<artifactId>jakarta.annotation-api</artifactId>
 		</dependency>
 		<!-- OpenAPI / Swagger end -->
+
+		<!-- Google cloud storage start -->
+		<dependency>
+			<groupId>com.google.cloud</groupId>
+			<artifactId>google-cloud-storage</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.google.cloud</groupId>
+			<artifactId>google-cloud-storage-control</artifactId>
+		</dependency>
+		<!-- Google cloud storage end -->
 
 		<!-- Test start -->
 		<dependency>
