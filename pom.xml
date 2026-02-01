@@ -32,7 +32,7 @@
 			<dependency>
 				<groupId>com.google.cloud</groupId>
 				<artifactId>libraries-bom</artifactId>
-				<version>26.72.0</version>
+				<version>26.75.0</version>
 				<type>pom</type>
 				<scope>import</scope>
 			</dependency>
@@ -47,9 +47,9 @@
 		<kotlin.compiler.jvmTarget>21</kotlin.compiler.jvmTarget>
 
 		<!-- OpenAPI -->
-		<openapi-generator-maven-plugin.version>7.18.0</openapi-generator-maven-plugin.version>
+		<openapi-generator-maven-plugin.version>7.19.0</openapi-generator-maven-plugin.version>
 		<springdoc-openapi.version>2.8.14</springdoc-openapi.version>
-		<swagger-annotations.version>2.2.41</swagger-annotations.version>
+		<swagger-annotations.version>2.2.42</swagger-annotations.version>
 
 		<!--Token-->
 		<token-validation.version>5.0.30</token-validation.version>
