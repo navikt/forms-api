@@ -330,6 +330,143 @@ class FormPublicationsControllerTest : ApplicationTest(setupPublishedGlobalTrans
 	}
 
 	@Test
+	fun testGetPublishedFormByRevisionReturnsHistoricalPublishedSnapshot() {
+		val publishedBy = "Publiserte Snapshot"
+		val authToken = mockOAuth2Server.createMockToken(userName = publishedBy)
+		val formPath = "nav998877"
+		val revision1 = testFormsApi.createForm(
+			FormsTestdata.newFormRequest(skjemanummer = formPath, title = "Revisjon 1"),
+			authToken,
+		).assertSuccess().body
+
+		val publishedRevision1 = testFormsApi.publishForm(formPath, revision1.revision!!, authToken, listOf(LanguageCode.NB))
+			.assertSuccess()
+			.body
+
+		val revision2 = testFormsApi.updateForm(
+			formPath,
+			revision1.revision!!,
+			FormsTestdata.updateFormRequest(title = "Revisjon 2"),
+			authToken,
+		).assertSuccess().body
+		testFormsApi.publishForm(formPath, revision2.revision!!, authToken, LanguageCode.entries)
+			.assertSuccess()
+
+		testFormsApi.getPublishedForm(formPath)
+			.assertSuccess()
+			.body.let {
+				assertEquals(2, it.revision)
+				assertEquals("Revisjon 2", it.title)
+			}
+
+		testFormsApi.getPublishedForm(formPath, revision = 1)
+			.assertSuccess()
+			.body.let {
+				assertEquals(1, it.revision)
+				assertEquals("Revisjon 1", it.title)
+				assertEquals(FormStatus.published, it.status)
+				assertEquals(publishedRevision1.publishedAt, it.publishedAt)
+				assertEquals(publishedBy, it.publishedBy)
+				assertEquals(listOf("nb"), it.publishedLanguages)
+			}
+	}
+
+	@Test
+	fun testGetPublishedFormByRevisionReturnsNotFoundWhenRevisionWasNeverPublished() {
+		val authToken = mockOAuth2Server.createMockToken()
+		val formPath = "nav887766"
+		val revision1 = testFormsApi.createForm(
+			FormsTestdata.newFormRequest(skjemanummer = formPath, title = "Revisjon 1"),
+			authToken,
+		).assertSuccess().body
+		val revision2 = testFormsApi.updateForm(
+			formPath,
+			revision1.revision!!,
+			FormsTestdata.updateFormRequest(title = "Revisjon 2"),
+			authToken,
+		).assertSuccess().body
+
+		testFormsApi.publishForm(formPath, revision2.revision!!, authToken)
+			.assertSuccess()
+
+		testFormsApi.getPublishedForm(formPath, revision = revision1.revision!!)
+			.assertHttpStatus(HttpStatus.NOT_FOUND)
+	}
+
+	@Test
+	fun testGetPublishedFormByRevisionReturnsNotFoundWhenRevisionDoesNotExist() {
+		val authToken = mockOAuth2Server.createMockToken()
+		val form = testFormsApi.createForm(FormsTestdata.newFormRequest(), authToken)
+			.assertSuccess()
+			.body
+
+		testFormsApi.publishForm(form.path!!, form.revision!!, authToken)
+			.assertSuccess()
+
+		testFormsApi.getPublishedForm(form.path!!, revision = 99)
+			.assertHttpStatus(HttpStatus.NOT_FOUND)
+	}
+
+	@Test
+	fun testGetPublishedFormByRevisionReturnsBadRequestForNonPositiveRevision() {
+		val authToken = mockOAuth2Server.createMockToken()
+		val form = testFormsApi.createForm(FormsTestdata.newFormRequest(), authToken)
+			.assertSuccess()
+			.body
+
+		listOf(0, -1).forEach { invalidRevision ->
+			testFormsApi.getPublishedForm(form.path!!, revision = invalidRevision)
+				.assertHttpStatus(HttpStatus.BAD_REQUEST)
+		}
+	}
+
+	@Test
+	fun testGetPublishedFormByRevisionPrefersLatestPublishedSnapshotForSameRevision() {
+		val authToken = mockOAuth2Server.createMockToken()
+		val form = testFormsApi.createForm(FormsTestdata.newFormRequest(), authToken)
+			.assertSuccess()
+			.body
+		testFormsApi.publishForm(form.path!!, form.revision!!, authToken, listOf(LanguageCode.NB))
+			.assertSuccess()
+		val latestPublication = testFormsApi.publishForm(form.path!!, form.revision!!, authToken, LanguageCode.entries)
+			.assertSuccess()
+			.body
+
+		testFormsApi.getPublishedForm(form.path!!, revision = form.revision)
+			.assertSuccess()
+			.body.let {
+				assertEquals(FormStatus.published, it.status)
+				assertEquals(latestPublication.publishedAt, it.publishedAt)
+				assertEquals(listOf("nb", "nn", "en"), it.publishedLanguages)
+			}
+	}
+
+	@Test
+	fun testGetPublishedFormByRevisionStillWorksAfterLaterUnpublish() {
+		val authToken = mockOAuth2Server.createMockToken()
+		val form = testFormsApi.createForm(FormsTestdata.newFormRequest(), authToken)
+			.assertSuccess()
+			.body
+		val publishedForm = testFormsApi.publishForm(form.path!!, form.revision!!, authToken, LanguageCode.entries)
+			.assertSuccess()
+			.body
+
+		testFormsApi.unpublishForm(form.path!!, authToken)
+			.assertSuccess()
+
+		testFormsApi.getPublishedForm(form.path!!)
+			.assertHttpStatus(HttpStatus.NOT_FOUND)
+		testFormsApi.getPublishedForm(form.path!!, revision = form.revision)
+			.assertSuccess()
+			.body.let {
+				assertEquals(FormStatus.published, it.status)
+				assertEquals(publishedForm.publishedAt, it.publishedAt)
+				assertEquals(publishedForm.publishedBy, it.publishedBy)
+				assertEquals(listOf("nb", "nn", "en"), it.publishedLanguages)
+			}
+	}
+
+	@Test
 	fun testGetPublishedFormWhenNotPublished() {
 		val authToken = mockOAuth2Server.createMockToken()
 		val createRequest = FormsTestdata.newFormRequest()
@@ -381,6 +518,23 @@ class FormPublicationsControllerTest : ApplicationTest(setupPublishedGlobalTrans
 			.errorBody
 
 		assertEquals("Form not found", errorBody.errorMessage)
+	}
+
+	@Test
+	fun testGetPublishedFormByRevisionWhenDeleted() {
+		val authToken = mockOAuth2Server.createMockToken()
+		val form = testFormsApi.createForm(FormsTestdata.newFormRequest(), authToken)
+			.assertSuccess()
+			.body
+
+		testFormsApi.deleteForm(form.path!!, form.revision!!, authToken)
+			.assertSuccess()
+
+		testFormsApi.getPublishedForm(form.path!!, revision = form.revision)
+			.assertHttpStatus(HttpStatus.NOT_FOUND)
+			.errorBody.let {
+				assertEquals("Form not found", it.errorMessage)
+			}
 	}
 
 	@Test

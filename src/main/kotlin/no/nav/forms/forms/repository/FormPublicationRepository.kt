@@ -7,6 +7,17 @@ import org.springframework.stereotype.Repository
 @Repository
 interface FormPublicationRepository: JpaRepository<FormPublicationEntity, Long> {
 
-	fun findFirstByFormRevisionFormPathOrderByCreatedAtDesc(formPath: String): FormPublicationEntity?
+	fun findFirstByFormRevisionFormPathOrderByCreatedAtDescIdDesc(formPath: String): FormPublicationEntity?
+
+	fun findFirstByFormRevisionFormPathAndFormRevisionRevisionOrderByCreatedAtDescIdDesc(
+		formPath: String,
+		revision: Int,
+	): FormPublicationEntity?
+
+	fun findFirstByFormRevisionFormPathAndFormRevisionRevisionAndStatusOrderByCreatedAtDescIdDesc(
+		formPath: String,
+		revision: Int,
+		status: no.nav.forms.forms.repository.entity.FormPublicationStatusDb,
+	): FormPublicationEntity?
 
 }

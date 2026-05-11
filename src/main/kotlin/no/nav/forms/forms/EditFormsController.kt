@@ -36,12 +36,12 @@ class EditFormsController(
 	}
 
 	@Unprotected
-	override fun getForm(formPath: String, select: String?, includeDeleted: Boolean): ResponseEntity<FormDto> {
+	override fun getForm(formPath: String, select: String?, includeDeleted: Boolean, revision: Int?): ResponseEntity<FormDto> {
 		val selectList = when {
 			select?.isNotEmpty() == true -> select.split(",")
 			else -> null
 		}
-		val form = editFormsService.getForm(formPath, selectList, includeDeleted)
+		val form = editFormsService.getForm(formPath, selectList, includeDeleted, revision)
 		return ResponseEntity.ok(form)
 	}
 

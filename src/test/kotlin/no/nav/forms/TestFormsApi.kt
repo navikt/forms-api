@@ -249,10 +249,20 @@ class TestFormsApi(
 	}
 
 	fun getForm(formPath: String, includeDeleted: Boolean? = false, select: String? = null): FormsApiResponse<FormDto> {
-		val queryString = buildString {
-			if (!select.isNullOrEmpty()) append("?select=$select")
-			if (includeDeleted == true) append("${if (isNotEmpty()) "&" else "?"}includeDeleted=true")
-		}
+		return getForm(formPath, includeDeleted, select, revision = null)
+	}
+
+	fun getForm(
+		formPath: String,
+		includeDeleted: Boolean? = false,
+		select: String? = null,
+		revision: Int?,
+	): FormsApiResponse<FormDto> {
+		val queryString = buildQueryString(
+			"select" to select,
+			"includeDeleted" to includeDeleted?.takeIf { it }?.toString(),
+			"revision" to revision?.toString(),
+		)
 		val response = restTemplate.exchange<String>(
 			"$formsBaseUrl/$formPath$queryString",
 			HttpMethod.GET,
@@ -326,9 +336,10 @@ class TestFormsApi(
 		return FormsApiResponse(response.statusCode, body)
 	}
 
-	fun getPublishedForm(formPath: String): FormsApiResponse<FormDto> {
+	fun getPublishedForm(formPath: String, revision: Int? = null): FormsApiResponse<FormDto> {
+		val queryString = buildQueryString("revision" to revision?.toString())
 		val response = restTemplate.exchange<String>(
-			"$formPublicationsBaseUrl/$formPath",
+			"$formPublicationsBaseUrl/$formPath$queryString",
 			HttpMethod.GET,
 			HttpEntity(null, httpHeaders(null))
 		)
@@ -482,5 +493,14 @@ class TestFormsApi(
 			response.statusCode.is2xxSuccessful -> Pair(objectMapper.readValue(response.body, clazz), null)
 			else -> Pair(null, objectMapper.readValue(response.body, ErrorResponseDto::class.java))
 		}
+
+	private fun buildQueryString(vararg queryParams: Pair<String, String?>): String {
+		val params = queryParams
+			.mapNotNull { (name, value) -> value?.takeIf { it.isNotEmpty() }?.let { "$name=$it" } }
+		return when {
+			params.isEmpty() -> ""
+			else -> "?${params.joinToString("&")}"
+		}
+	}
 
 }

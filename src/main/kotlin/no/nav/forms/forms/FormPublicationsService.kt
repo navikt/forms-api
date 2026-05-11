@@ -11,7 +11,9 @@ import no.nav.forms.forms.repository.FormViewRepository
 import no.nav.forms.forms.repository.entity.FormPublicationEntity
 import no.nav.forms.forms.repository.entity.FormPublicationStatusDb
 import no.nav.forms.forms.utils.findLatestPublication
-import no.nav.forms.forms.utils.getPropLoader
+import no.nav.forms.forms.utils.getPropLoaders
+import no.nav.forms.forms.utils.toLatestPublicationContext
+import no.nav.forms.forms.utils.toPublishedSnapshotContext
 import no.nav.forms.forms.utils.toDto
 import no.nav.forms.forms.utils.toFormCompactDto
 import no.nav.forms.model.FormCompactDto
@@ -28,7 +30,6 @@ import no.nav.forms.utils.toJsonNode
 import no.nav.forms.utils.toLanguageCodes
 import org.springframework.stereotype.Service
 import java.time.LocalDateTime
-import kotlin.jvm.optionals.getOrElse
 
 @Service
 class FormPublicationsService(
@@ -56,7 +57,7 @@ class FormPublicationsService(
 
 		val createdAt = LocalDateTime.now()
 		val (publishedFormTranslations, publishedLanguages) = if (languages == null) {
-			val formPublication = formPublicationRepository.findFirstByFormRevisionFormPathOrderByCreatedAtDesc(formPath)
+			val formPublication = formPublicationRepository.findFirstByFormRevisionFormPathOrderByCreatedAtDescIdDesc(formPath)
 				?: throw IllegalArgumentException("Found no existing publication of this form, languages must therefore be provided on publish")
 			Pair(formPublication.publishedFormTranslation, formPublication.languages)
 		} else {
@@ -89,42 +90,28 @@ class FormPublicationsService(
 		)
 		entityManager.refresh(form)
 
-		val componentsEntity = formAttributeRepository.findById(latestFormRevision.componentsId)
-			.getOrElse { throw IllegalStateException("Failed to load components for latest form revision (${formPath})") }
-		val introPageEntity = when {
-			latestFormRevision.introPageId != null -> formAttributeRepository.findById(latestFormRevision.introPageId!!)
-				.getOrElse { throw IllegalStateException("Failed to load intro page for latest form revision (${formPath})") }
-
-			else -> null
-		}
 		return latestFormRevision.toDto(
-			propLoaders = mapOf(
-				"introPage" to introPageEntity.getPropLoader(),
-				"components" to componentsEntity.getPropLoader()
-			)
+			propLoaders = latestFormRevision.getPropLoaders(formPath, formAttributeRepository),
+			publicationContext = form.toLatestPublicationContext(latestFormRevision),
 		)
 	}
 
 	@Transactional
-	fun getPublishedForm(formPath: String): FormDto {
+	fun getPublishedForm(formPath: String, revision: Int? = null): FormDto {
 		val form = formRepository.findByPathAndDeletedAtIsNull(formPath)
 			?: throw ResourceNotFoundException("Form not found", formPath)
-		val latestPublication = form.findLatestPublication().takeIf { it?.status == FormPublicationStatusDb.Published }
-			?: throw ResourceNotFoundException("Form not published", formPath)
-		val publishedFormRevision = latestPublication.formRevision
-		val componentsEntity = formAttributeRepository.findById(publishedFormRevision.componentsId)
-			.getOrElse { throw IllegalStateException("Failed to load components for latest form revision (${formPath})") }
-		val introPageEntity = when {
-			publishedFormRevision.introPageId != null -> formAttributeRepository.findById(publishedFormRevision.introPageId!!)
-				.getOrElse { throw IllegalStateException("Failed to load intro page for latest form revision (${formPath})") }
-
-			else -> null
-		}
-		return publishedFormRevision.toDto(
-			propLoaders = mapOf(
-				"introPage" to introPageEntity.getPropLoader(),
-				"components" to componentsEntity.getPropLoader()
+		val publication = when (revision) {
+			null -> form.findLatestPublication().takeIf { it?.status == FormPublicationStatusDb.Published }
+			else -> formPublicationRepository.findFirstByFormRevisionFormPathAndFormRevisionRevisionAndStatusOrderByCreatedAtDescIdDesc(
+				formPath,
+				revision,
+				FormPublicationStatusDb.Published,
 			)
+		} ?: throw ResourceNotFoundException("Form not published", formPath)
+		val publishedFormRevision = publication.formRevision
+		return publishedFormRevision.toDto(
+			propLoaders = publishedFormRevision.getPropLoaders(formPath, formAttributeRepository),
+			publicationContext = publication.toPublishedSnapshotContext(),
 		)
 	}
 
@@ -140,7 +127,7 @@ class FormPublicationsService(
 		formPath: String,
 		requestedLanguageCodes: List<LanguageCode>
 	): PublishedTranslationsDto {
-		val publication = formPublicationRepository.findFirstByFormRevisionFormPathOrderByCreatedAtDesc(formPath)
+		val publication = formPublicationRepository.findFirstByFormRevisionFormPathOrderByCreatedAtDescIdDesc(formPath)
 			?: throw ResourceNotFoundException("Form not published", formPath)
 		val publishedLanguages = publication.languages.toLanguageCodes()
 		val translations = requestedLanguageCodes.intersect(publishedLanguages).associate {
@@ -155,7 +142,7 @@ class FormPublicationsService(
 
 	@Transactional
 	fun unpublishForm(formPath: String, userId: String) {
-		val publication = formPublicationRepository.findFirstByFormRevisionFormPathOrderByCreatedAtDesc(formPath)
+		val publication = formPublicationRepository.findFirstByFormRevisionFormPathOrderByCreatedAtDescIdDesc(formPath)
 			?: throw ResourceNotFoundException("Form not published", formPath)
 		if (publication.status == FormPublicationStatusDb.Unpublished) {
 			throw IllegalArgumentException("Form $formPath is already unpublished")

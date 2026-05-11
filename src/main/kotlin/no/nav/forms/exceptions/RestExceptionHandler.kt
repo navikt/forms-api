@@ -1,5 +1,6 @@
 package no.nav.forms.exceptions
 
+import jakarta.validation.ConstraintViolationException
 import no.nav.forms.exceptions.db.getFormsApiDbError
 import no.nav.forms.logging.MdcInterceptor
 import no.nav.forms.model.ErrorResponseDto
@@ -18,6 +19,7 @@ import org.springframework.orm.jpa.JpaSystemException
 import org.springframework.web.bind.MissingRequestHeaderException
 import org.springframework.web.bind.annotation.ControllerAdvice
 import org.springframework.web.bind.annotation.ExceptionHandler
+import org.springframework.web.method.annotation.HandlerMethodValidationException
 
 @ControllerAdvice
 class RestExceptionHandler {
@@ -59,6 +61,17 @@ class RestExceptionHandler {
 		val status = HttpStatus.CONFLICT
 		logger.info(exception.message, exception)
 		return ResponseEntity.status(status).body(ErrorResponseDto(status.reasonPhrase, getCorrelationId()))
+	}
+
+	@ExceptionHandler(
+		ConstraintViolationException::class,
+		HandlerMethodValidationException::class,
+	)
+	fun handleValidationException(exception: Exception): ResponseEntity<ErrorResponseDto> {
+		val status = HttpStatus.BAD_REQUEST
+		val errorMessage = exception.message ?: status.reasonPhrase
+		logger.info(errorMessage, exception)
+		return ResponseEntity.status(status).body(ErrorResponseDto(errorMessage, getCorrelationId()))
 	}
 
 	@ExceptionHandler(
