@@ -97,17 +97,11 @@ class FormPublicationsService(
 	}
 
 	@Transactional
-	fun getPublishedForm(formPath: String, revision: Int? = null): FormDto {
+	fun getPublishedForm(formPath: String): FormDto {
 		val form = formRepository.findByPathAndDeletedAtIsNull(formPath)
 			?: throw ResourceNotFoundException("Form not found", formPath)
-		val publication = when (revision) {
-			null -> form.findLatestPublication().takeIf { it?.status == FormPublicationStatusDb.Published }
-			else -> formPublicationRepository.findFirstByFormRevisionFormPathAndFormRevisionRevisionAndStatusOrderByCreatedAtDescIdDesc(
-				formPath,
-				revision,
-				FormPublicationStatusDb.Published,
-			)
-		} ?: throw ResourceNotFoundException("Form not published", formPath)
+		val publication = form.findLatestPublication().takeIf { it?.status == FormPublicationStatusDb.Published }
+			?: throw ResourceNotFoundException("Form not published", formPath)
 		val publishedFormRevision = publication.formRevision
 		return publishedFormRevision.toDto(
 			propLoaders = publishedFormRevision.getPropLoaders(formPath, formAttributeRepository),

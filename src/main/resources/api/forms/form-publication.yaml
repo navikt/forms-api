@@ -61,7 +61,6 @@ post:
 get:
   summary: Henter den publiserte versjonen av et skjema
   operationId: getPublishedForm
-  description: Henter siste aktive publisering når `revision` utelates. Hvis `revision` er oppgitt returneres siste publiserte snapshot for den revisjonen.
   security:
   - bearerAuth: []
   parameters:
@@ -71,14 +70,6 @@ get:
       required: true
       schema:
         $ref: "./components.yaml#/components/schemas/FormPath"
-    - name: revision
-      in: query
-      description: Henter siste publiserte snapshot for en spesifikk revisjon. Når den utelates returneres siste aktive publisering.
-      required: false
-      schema:
-        type: integer
-        format: int32
-        minimum: 1
   responses:
     200:
       description: Den publiserte versjonen av skjemaet

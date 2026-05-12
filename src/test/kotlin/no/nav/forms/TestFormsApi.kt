@@ -336,10 +336,9 @@ class TestFormsApi(
 		return FormsApiResponse(response.statusCode, body)
 	}
 
-	fun getPublishedForm(formPath: String, revision: Int? = null): FormsApiResponse<FormDto> {
-		val queryString = buildQueryString("revision" to revision?.toString())
+	fun getPublishedForm(formPath: String): FormsApiResponse<FormDto> {
 		val response = restTemplate.exchange<String>(
-			"$formPublicationsBaseUrl/$formPath$queryString",
+			"$formPublicationsBaseUrl/$formPath",
 			HttpMethod.GET,
 			HttpEntity(null, httpHeaders(null))
 		)

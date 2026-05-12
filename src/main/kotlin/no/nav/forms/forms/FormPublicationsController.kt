@@ -40,8 +40,8 @@ class FormPublicationsController(
 	}
 
 	@Unprotected
-	override fun getPublishedForm(formPath: String, revision: Int?): ResponseEntity<FormDto> {
-		val form = formPublicationsService.getPublishedForm(formPath, revision)
+	override fun getPublishedForm(formPath: String): ResponseEntity<FormDto> {
+		val form = formPublicationsService.getPublishedForm(formPath)
 		return ResponseEntity.ok(form)
 	}
 
