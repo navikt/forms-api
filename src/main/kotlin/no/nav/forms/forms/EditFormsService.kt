@@ -1,6 +1,5 @@
 package no.nav.forms.forms
 
-import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import jakarta.persistence.EntityManager
 import jakarta.transaction.Transactional
@@ -12,9 +11,12 @@ import no.nav.forms.forms.repository.*
 import no.nav.forms.forms.repository.entity.FormAttributeEntity
 import no.nav.forms.forms.repository.entity.FormAttributeName.*
 import no.nav.forms.forms.repository.entity.FormEntity
+import no.nav.forms.forms.repository.entity.FormPublicationStatusDb
 import no.nav.forms.forms.repository.entity.FormRevisionEntity
 import no.nav.forms.forms.repository.entity.attributes.FormLockDb
-import no.nav.forms.forms.utils.getPropLoader
+import no.nav.forms.forms.utils.getPropLoaders
+import no.nav.forms.forms.utils.toLatestPublicationContext
+import no.nav.forms.forms.utils.toRevisionPublicationContext
 import no.nav.forms.forms.utils.toDto
 import no.nav.forms.forms.utils.toFormCompactDto
 import no.nav.forms.model.FormCompactDto
@@ -94,37 +96,59 @@ class EditFormsService(
 
 		logger.info("New form created: $skjemanummer")
 		return formRevision.toDto(
-			propLoaders = mapOf(
-				"introPage" to introPageEntity.getPropLoader(),
-				"components" to componentsEntity.getPropLoader()
-			)
+			propLoaders = formRevision.getPropLoaders(formPath, formAttributeRepository),
+			publicationContext = form.toLatestPublicationContext(formRevision),
 		)
 	}
 
 	@Transactional(Transactional.TxType.SUPPORTS)
-	fun getForm(formPath: String, listOfProperties: List<String>? = null, includeDeleted: Boolean = false): FormDto {
-		val form = when {
-			includeDeleted -> formRepository.findByPath(formPath)
-			else -> formRepository.findByPathAndDeletedAtIsNull(formPath)
-		} ?: throw ResourceNotFoundException("Form not found", formPath)
-		val latestRevision = form.revisions.last()
-		val loadIntroPage: () -> JsonNode? = {
-			latestRevision.introPageId?.let {
-				formAttributeRepository.findById(it)
-					.getOrElse { throw IllegalStateException("Failed to load intro page for latest form revision (${formPath})") }.value
+	fun getForm(
+		formPath: String,
+		listOfProperties: List<String>? = null,
+		includeDeleted: Boolean = false,
+		revision: Int? = null,
+	): FormDto {
+		return when (revision) {
+			null -> {
+				val form = when {
+					includeDeleted -> formRepository.findByPath(formPath)
+					else -> formRepository.findByPathAndDeletedAtIsNull(formPath)
+				} ?: throw ResourceNotFoundException("Form not found", formPath)
+				val latestRevision = form.revisions.last()
+				latestRevision.toDto(
+					select = listOfProperties,
+					propLoaders = latestRevision.getPropLoaders(formPath, formAttributeRepository),
+					publicationContext = form.toLatestPublicationContext(latestRevision),
+				)
+			}
+
+			else -> {
+				val formRevision = formRevisionRepository.findFirstByFormPathAndRevision(formPath, revision)
+					?: throw ResourceNotFoundException("Form not found", formPath)
+				if (!includeDeleted && formRevision.form.deletedAt != null) {
+					throw ResourceNotFoundException("Form not found", formPath)
+				}
+				val latestRevisionEvent =
+					formPublicationRepository.findFirstByFormRevisionFormPathAndFormRevisionRevisionOrderByCreatedAtDescIdDesc(
+						formPath,
+						revision,
+					)
+				val latestPublishedRevisionEvent =
+					formPublicationRepository.findFirstByFormRevisionFormPathAndFormRevisionRevisionAndStatusOrderByCreatedAtDescIdDesc(
+						formPath,
+						revision,
+						FormPublicationStatusDb.Published,
+					)
+				formRevision.toDto(
+					select = listOfProperties,
+					propLoaders = formRevision.getPropLoaders(formPath, formAttributeRepository),
+					publicationContext = formRevision.toRevisionPublicationContext(
+						latestRevisionEvent,
+						latestPublishedRevisionEvent,
+					),
+				)
 			}
 		}
-		val loadComponents: () -> JsonNode? = {
-			formAttributeRepository.findById(latestRevision.componentsId)
-				.getOrElse { throw IllegalStateException("Failed to load components for latest form revision (${formPath})") }.value
-		}
-		return latestRevision.toDto(
-			listOfProperties,
-			mapOf(
-				"introPage" to loadIntroPage,
-				"components" to loadComponents
-			)
-		)
 	}
 
 	@Transactional
@@ -191,10 +215,8 @@ class EditFormsService(
 			)
 		)
 		return formRevision.toDto(
-			propLoaders = mapOf(
-				"introPage" to introPageEntity.getPropLoader(),
-				"components" to componentsEntity.getPropLoader()
-			)
+			propLoaders = formRevision.getPropLoaders(formPath, formAttributeRepository),
+			publicationContext = form.toLatestPublicationContext(formRevision),
 		)
 	}
 
@@ -218,19 +240,9 @@ class EditFormsService(
 		logger.info("Form ${form.skjemanummer} ($formPath) locked by $userId")
 
 		val latestRevision = form.revisions.last()
-		val componentsEntity = formAttributeRepository.findById(latestRevision.componentsId)
-			.getOrElse { throw IllegalStateException("Failed to load components for latest form revision (${formPath})") }
-		val introPageEntity = when {
-			latestRevision.introPageId != null -> formAttributeRepository.findById(latestRevision.introPageId!!)
-				.getOrElse { throw IllegalStateException("Failed to load intro page for latest form revision (${formPath})") }
-
-			else -> null
-		}
 		return latestRevision.toDto(
-			propLoaders = mapOf(
-				"introPage" to introPageEntity.getPropLoader(),
-				"components" to componentsEntity.getPropLoader()
-			)
+			propLoaders = latestRevision.getPropLoaders(formPath, formAttributeRepository),
+			publicationContext = form.toLatestPublicationContext(latestRevision),
 		)
 	}
 
@@ -245,19 +257,9 @@ class EditFormsService(
 		logger.info("Form ${form.skjemanummer} ($formPath) unlocked by $userId")
 
 		val latestRevision = form.revisions.last()
-		val componentsEntity = formAttributeRepository.findById(latestRevision.componentsId)
-			.getOrElse { throw IllegalStateException("Failed to load components for latest form revision (${formPath})") }
-		val introPageEntity = when {
-			latestRevision.introPageId != null -> formAttributeRepository.findById(latestRevision.introPageId!!)
-				.getOrElse { throw IllegalStateException("Failed to load intro page for latest form revision (${formPath})") }
-
-			else -> null
-		}
 		return latestRevision.toDto(
-			propLoaders = mapOf(
-				"introPage" to introPageEntity.getPropLoader(),
-				"components" to componentsEntity.getPropLoader()
-			)
+			propLoaders = latestRevision.getPropLoaders(formPath, formAttributeRepository),
+			publicationContext = form.toLatestPublicationContext(latestRevision),
 		)
 	}
 
@@ -279,10 +281,10 @@ class EditFormsService(
 		if (form.revision != revision) {
 			throw InvalidRevisionException("Unexpected form revision: $revision")
 		}
-		val formPublication = formPublicationRepository.findFirstByFormRevisionFormPathOrderByCreatedAtDesc(formPath)
+		val formPublication = formPublicationRepository.findFirstByFormRevisionFormPathOrderByCreatedAtDescIdDesc(formPath)
 			?: throw IllegalArgumentException("Form $formPath is not published")
 		val publishedFormRevision = formRevisionRepository.findById(form.publishedRevisionId!!)
-			.getOrElse { throw IllegalStateException("Failed to load published revision (${formPath})") }
+			.orElseThrow { IllegalStateException("Failed to load published revision (${formPath})") }
 
 		// Delete all form revisions created since last publication
 		formRevisionRepository.deleteAllByFormPathAndRevisionGreaterThan(formPath, publishedFormRevision.revision)
