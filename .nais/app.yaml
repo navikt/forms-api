@@ -53,7 +53,7 @@ spec:
       {{/each}}
   gcp:
     sqlInstances:
-      - type: POSTGRES_16
+      - type: POSTGRES_17
         tier: {{ database.tier }}
         diskType: SSD
         highAvailability: true
