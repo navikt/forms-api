@@ -1,6 +1,7 @@
 get:
   summary: Henter et skjema
   operationId: getForm
+  description: Henter siste revisjon av skjemaet når `revision` utelates. Hvis `revision` er oppgitt returneres den angitte revisjonen.
   security: []
   parameters:
     - name: formPath
@@ -23,6 +24,14 @@ get:
       schema:
         type: boolean
         default: false
+    - name: revision
+      in: query
+      description: Henter en spesifikk revisjon av skjemaet. Når den utelates returneres siste revisjon.
+      required: false
+      schema:
+        type: integer
+        format: int32
+        minimum: 1
   responses:
     200:
       description: Returnerer skjemadefinisjonen

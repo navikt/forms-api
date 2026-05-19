@@ -7,6 +7,8 @@ import org.springframework.stereotype.Repository
 @Repository
 interface FormRevisionRepository : JpaRepository<FormRevisionEntity, Long> {
 
+	fun findFirstByFormPathAndRevision(formPath: String, revision: Int): FormRevisionEntity?
+
 	fun deleteAllByFormPathAndRevisionGreaterThan(formPath: String, revision: Int): Int
 
 }

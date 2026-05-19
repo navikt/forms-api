@@ -2,6 +2,7 @@ package no.nav.forms.forms
 
 import no.nav.forms.ApplicationTest
 import no.nav.forms.exceptions.db.DbError
+import no.nav.forms.model.FormStatus
 import no.nav.forms.model.LockFormRequest
 import no.nav.forms.model.NewFormTranslationRequestDto
 import no.nav.forms.model.UpdateFormTranslationRequest
@@ -230,6 +231,131 @@ class EditFormsControllerTest : ApplicationTest(setupPublishedGlobalTranslations
 		assertEquals(newForm.components, form.components)
 		assertEquals(newForm.properties, form.properties)
 		assertEquals(newForm.revision, form.revision)
+	}
+
+	@Test
+	fun testGetFormByRevisionReturnsHistoricalSnapshotWithRevisionSpecificPublicationMetadata() {
+		val publishedBy = "Historisk Publisist"
+		val authToken = mockOAuth2Server.createMockToken(userName = publishedBy)
+		val formPath = "nav123456"
+		val revision1 = testFormsApi.createForm(
+			FormsTestdata.newFormRequest(skjemanummer = formPath, title = "Revisjon 1"),
+			authToken,
+		).assertSuccess().body
+
+		val publishedRevision1 = testFormsApi.publishForm(
+			formPath,
+			revision1.revision!!,
+			authToken,
+			listOf(LanguageCode.NB, LanguageCode.NN),
+		).assertSuccess().body
+
+		testFormsApi.updateForm(
+			formPath,
+			revision1.revision!!,
+			FormsTestdata.updateFormRequest(title = "Revisjon 2"),
+			authToken,
+		).assertSuccess()
+
+		testFormsApi.getForm(formPath)
+			.assertSuccess()
+			.body.let {
+				assertEquals(2, it.revision)
+				assertEquals("Revisjon 2", it.title)
+				assertEquals(FormStatus.pending, it.status)
+			}
+
+		testFormsApi.getForm(formPath, revision = 1)
+			.assertSuccess()
+			.body.let {
+				assertEquals(1, it.revision)
+				assertEquals("Revisjon 1", it.title)
+				assertEquals(FormStatus.published, it.status)
+				assertEquals(publishedRevision1.publishedAt, it.publishedAt)
+				assertEquals(publishedBy, it.publishedBy)
+				assertEquals(listOf("nb", "nn"), it.publishedLanguages)
+			}
+	}
+
+	@Test
+	fun testGetFormByRevisionReturnsNotFoundWhenRevisionDoesNotExist() {
+		val authToken = mockOAuth2Server.createMockToken()
+		val form = testFormsApi.createForm(FormsTestdata.newFormRequest(), authToken)
+			.assertSuccess()
+			.body
+
+		testFormsApi.getForm(form.path!!, revision = 99)
+			.assertHttpStatus(HttpStatus.NOT_FOUND)
+			.errorBody.let {
+				assertEquals("Form not found", it.errorMessage)
+			}
+	}
+
+	@Test
+	fun testGetFormByRevisionReturnsBadRequestForNonPositiveRevision() {
+		val authToken = mockOAuth2Server.createMockToken()
+		val form = testFormsApi.createForm(FormsTestdata.newFormRequest(), authToken)
+			.assertSuccess()
+			.body
+
+		listOf(0, -1).forEach { invalidRevision ->
+			testFormsApi.getForm(form.path!!, revision = invalidRevision)
+				.assertHttpStatus(HttpStatus.BAD_REQUEST)
+		}
+	}
+
+	@Test
+	fun testGetFormByRevisionReturnsUnpublishedStatusWhileKeepingLastPublishedMetadata() {
+		val publishedBy = "Publiserte Form"
+		val authToken = mockOAuth2Server.createMockToken(userName = publishedBy)
+		val form = testFormsApi.createForm(FormsTestdata.newFormRequest(), authToken)
+			.assertSuccess()
+			.body
+		val publishedForm = testFormsApi.publishForm(form.path!!, form.revision!!, authToken, listOf(LanguageCode.NB, LanguageCode.EN))
+			.assertSuccess()
+			.body
+
+		testFormsApi.unpublishForm(form.path!!, authToken)
+			.assertSuccess()
+
+		testFormsApi.getForm(form.path!!, revision = form.revision)
+			.assertSuccess()
+			.body.let {
+				assertEquals(FormStatus.unpublished, it.status)
+				assertEquals(publishedForm.publishedAt, it.publishedAt)
+				assertEquals(publishedBy, it.publishedBy)
+				assertEquals(listOf("nb", "en"), it.publishedLanguages)
+			}
+	}
+
+	@Test
+	fun testGetFormByRevisionReturnsDraftForOlderNeverPublishedRevisionEvenWhenNewerRevisionIsPublished() {
+		val authToken = mockOAuth2Server.createMockToken()
+		val formPath = "nav654321"
+		val revision1 = testFormsApi.createForm(
+			FormsTestdata.newFormRequest(skjemanummer = formPath, title = "Revisjon 1"),
+			authToken,
+		).assertSuccess().body
+		val revision2 = testFormsApi.updateForm(
+			formPath,
+			revision1.revision!!,
+			FormsTestdata.updateFormRequest(title = "Revisjon 2"),
+			authToken,
+		).assertSuccess().body
+
+		testFormsApi.publishForm(formPath, revision2.revision!!, authToken, LanguageCode.entries)
+			.assertSuccess()
+
+		testFormsApi.getForm(formPath, revision = revision1.revision!!)
+			.assertSuccess()
+			.body.let {
+				assertEquals(1, it.revision)
+				assertEquals("Revisjon 1", it.title)
+				assertEquals(FormStatus.draft, it.status)
+				assertNull(it.publishedAt)
+				assertNull(it.publishedBy)
+				assertNull(it.publishedLanguages)
+			}
 	}
 
 	@Test
@@ -485,6 +611,48 @@ class EditFormsControllerTest : ApplicationTest(setupPublishedGlobalTranslations
 			select2.split(",")
 		)
 
+	}
+
+	@Test
+	fun testGetFormWithSelectAndRevision() {
+		val authToken = mockOAuth2Server.createMockToken()
+		val formPath = "nav246810"
+		val form = testFormsApi.createForm(FormsTestdata.newFormRequest(skjemanummer = formPath), authToken)
+			.assertSuccess()
+			.body
+
+		testFormsApi.updateForm(formPath, form.revision!!, FormsTestdata.updateFormRequest(title = "Ny tittel"), authToken)
+			.assertSuccess()
+
+		val select = "components,revision"
+		assertPrecenceOfProps(
+			testFormsApi.getForm(formPath, select = select, revision = 1).assertSuccess().body,
+			select.split(",")
+		)
+	}
+
+	@Test
+	fun testGetFormWithRevisionRespectsIncludeDeleted() {
+		val deletedBy = "Slettet Av"
+		val authToken = mockOAuth2Server.createMockToken(userName = deletedBy)
+		val formPath = "nav112233"
+		val form = testFormsApi.createForm(FormsTestdata.newFormRequest(skjemanummer = formPath), authToken)
+			.assertSuccess()
+			.body
+
+		testFormsApi.deleteForm(formPath, form.revision!!, authToken)
+			.assertSuccess()
+
+		testFormsApi.getForm(formPath, revision = form.revision)
+			.assertHttpStatus(HttpStatus.NOT_FOUND)
+
+		testFormsApi.getForm(formPath, includeDeleted = true, revision = form.revision)
+			.assertSuccess()
+			.body.let {
+				assertEquals(form.revision, it.revision)
+				assertNotNull(it.deletedAt)
+				assertEquals(deletedBy, it.deletedBy)
+			}
 	}
 
 	@Test
