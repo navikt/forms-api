@@ -9,6 +9,7 @@ import org.hibernate.Hibernate
 import org.hibernate.annotations.JdbcTypeCode
 import org.hibernate.type.SqlTypes
 import java.time.LocalDateTime
+import java.util.UUID
 
 @Entity
 @Table(name = "form_view")
@@ -68,6 +69,10 @@ class FormViewEntity(
 
 	@Column(name = "published_by", columnDefinition = "varchar", updatable = false)
 	val publishedBy: String? = null,
+
+	@JdbcTypeCode(SqlTypes.UUID)
+	@Column(name = "publication_id", columnDefinition = "uuid", updatable = false)
+	val publicationId: UUID? = null,
 
 	@Column(name = "published_rev_id", updatable = false)
 	val publishedRevisionId: Long? = null,

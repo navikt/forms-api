@@ -12,7 +12,6 @@ import no.nav.forms.forms.repository.entity.FormPublicationEntity
 import no.nav.forms.forms.repository.entity.FormPublicationStatusDb
 import no.nav.forms.forms.utils.findLatestPublication
 import no.nav.forms.forms.utils.getPropLoaders
-import no.nav.forms.forms.utils.toLatestPublicationContext
 import no.nav.forms.forms.utils.toPublishedSnapshotContext
 import no.nav.forms.forms.utils.toDto
 import no.nav.forms.forms.utils.toFormCompactDto
@@ -76,7 +75,7 @@ class FormPublicationsService(
 			Pair(publishedFormTranslations, languages.toJsonNode())
 		}
 
-		formPublicationRepository.save(
+		val publication = formPublicationRepository.save(
 			FormPublicationEntity(
 				createdAt = createdAt,
 				createdBy = userId,
@@ -88,11 +87,12 @@ class FormPublicationsService(
 				status = FormPublicationStatusDb.Published,
 			)
 		)
-		entityManager.refresh(form)
+		entityManager.flush()
+		entityManager.refresh(publication)
 
 		return latestFormRevision.toDto(
 			propLoaders = latestFormRevision.getPropLoaders(formPath, formAttributeRepository),
-			publicationContext = form.toLatestPublicationContext(latestFormRevision),
+			publicationContext = publication.toPublishedSnapshotContext(),
 		)
 	}
 
