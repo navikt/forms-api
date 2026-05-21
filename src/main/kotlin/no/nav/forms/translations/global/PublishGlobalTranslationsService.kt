@@ -1,10 +1,12 @@
 package no.nav.forms.translations.global
 
 import jakarta.transaction.Transactional
+import no.nav.forms.forms.FormPublicationPropagationService
 import no.nav.forms.model.PublishedTranslationsDto
 import no.nav.forms.translations.global.repository.GlobalTranslationRepository
 import no.nav.forms.translations.global.repository.PublishedGlobalTranslationsRepository
 import no.nav.forms.translations.global.repository.entity.GlobalTranslationEntity
+import no.nav.forms.translations.global.repository.entity.GlobalTranslationRevisionEntity
 import no.nav.forms.translations.global.repository.entity.PublishedGlobalTranslationsEntity
 import no.nav.forms.translations.global.utils.getLatestRevision
 import no.nav.forms.translations.global.utils.mapToDictionary
@@ -17,6 +19,7 @@ import java.time.LocalDateTime
 class PublishGlobalTranslationsService(
 	private val publishedGlobalTranslationsRepository: PublishedGlobalTranslationsRepository,
 	private val globalTranslationRepository: GlobalTranslationRepository,
+	private val formPublicationPropagationService: FormPublicationPropagationService,
 ) {
 
 	@Transactional
@@ -27,16 +30,23 @@ class PublishGlobalTranslationsService(
 	}
 
 	@Transactional
-	fun publish(userId: String) {
+	fun publish(userId: String): Boolean {
 		val globalTranslations = globalTranslationRepository.findAllByDeletedAtIsNull()
 		val latestRevisions = globalTranslations.mapNotNull(GlobalTranslationEntity::getLatestRevision).toSet()
-		publishedGlobalTranslationsRepository.save(
+		val latestPublishedGlobalTranslations = publishedGlobalTranslationsRepository.findFirstByOrderByCreatedAtDesc()
+		if (latestPublishedGlobalTranslations?.revisionIds() == latestRevisions.revisionIds()) {
+			return false
+		}
+
+		val savedPublication = publishedGlobalTranslationsRepository.save(
 			PublishedGlobalTranslationsEntity(
 				createdAt = LocalDateTime.now(),
 				createdBy = userId,
 				globalTranslationRevisions = latestRevisions
 			)
 		)
+		formPublicationPropagationService.propagateGlobalTranslationPublish(savedPublication)
+		return true
 	}
 
 	@Transactional
@@ -54,3 +64,7 @@ class PublishGlobalTranslationsService(
 	}
 
 }
+
+private fun PublishedGlobalTranslationsEntity.revisionIds(): Set<Long> = globalTranslationRevisions.revisionIds()
+
+private fun Set<GlobalTranslationRevisionEntity>.revisionIds(): Set<Long> = mapNotNull(GlobalTranslationRevisionEntity::id).toSet()
