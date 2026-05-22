@@ -344,3 +344,21 @@ Read-only projection used by the application to load the current form state quic
 - `form_revision_components` existed in the initial schema but was removed in `V3.1`; components now live in `form_attribute`.
 - `form_revision.properties` was moved into `form_attribute` in `V3.2`.
 - `publication_id` was added to `form_publication` in `V4.0`, then backfilled deterministically from timestamps in `V4.1`.
+
+## Flyway migration inputs
+
+This document reflects the schema after applying the current Flyway migration scripts in order.
+
+| Order | Migration script |
+| --- | --- |
+| 1 | `V1.0__recipient_table.sql` |
+| 2 | `V2.0__forms_and_translations.sql` |
+| 3 | `V2.1__form_view.sql` |
+| 4 | `V2.2__form_lock.sql` |
+| 5 | `V2.3__form_view_with_lock.sql` |
+| 6 | `V2.4__form_deleted.sql` |
+| 7 | `V3.0__intro_page.sql` |
+| 8 | `V3.1__migrate_components_to_attribute.sql` |
+| 9 | `V3.2__migrate_properties_to_attribute.sql` |
+| 10 | `V4.0__publication_id.sql` |
+| 11 | `V4.1__publication_id_from_created_at.sql` |
