@@ -35,8 +35,11 @@ class PublishGlobalTranslationsController(
 	override fun publishGlobalTranslations(): ResponseEntity<Unit> {
 		securityContextHolder.requireAdminUser()
 		val userId = securityContextHolder.getUserName()
-		publishGlobalTranslationsService.publish(userId)
-		return ResponseEntity.status(HttpStatus.CREATED).build()
+		val status = when (publishGlobalTranslationsService.publish(userId)) {
+			true -> HttpStatus.CREATED
+			else -> HttpStatus.NO_CONTENT
+		}
+		return ResponseEntity.status(status).build()
 	}
 
 }

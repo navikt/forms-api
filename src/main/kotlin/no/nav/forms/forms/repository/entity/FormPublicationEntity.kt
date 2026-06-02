@@ -80,21 +80,22 @@ class FormPublicationEntity(
 	}
 
 	fun copy(
-		createdAt: LocalDateTime,
-		createdBy: String,
-		status: FormPublicationStatusDb,
+		createdAt: LocalDateTime? = null,
+		createdBy: String? = null,
+		status: FormPublicationStatusDb? = null,
+		publishedGlobalTranslation: PublishedGlobalTranslationsEntity? = null,
 	): FormPublicationEntity {
 		return FormPublicationEntity(
 			id = null,
-			createdAt = createdAt,
-			createdBy = createdBy,
+			createdAt = createdAt ?: this.createdAt,
+			createdBy = createdBy ?: this.createdBy,
 			publicationId = null,
 			formRevision = this.formRevision,
 			form = this.form,
 			publishedFormTranslation = this.publishedFormTranslation,
-			publishedGlobalTranslation = this.publishedGlobalTranslation,
+			publishedGlobalTranslation = publishedGlobalTranslation ?: this.publishedGlobalTranslation,
 			languages = this.languages,
-			status = status,
+			status = status ?: this.status,
 		)
 	}
 
