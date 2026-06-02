@@ -56,6 +56,7 @@
 
 		<!-- Database -->
 		<otj-pg-embedded.version>1.1.1</otj-pg-embedded.version>
+		<typeid-kotlin.version>1.0.1</typeid-kotlin.version>
 
 		<!-- Metrics -->
 		<micrometer.version>1.13.3</micrometer.version>
@@ -129,6 +130,11 @@
 			<groupId>com.opentable.components</groupId>
 			<artifactId>otj-pg-embedded</artifactId>
 			<version>${otj-pg-embedded.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>earth.adi</groupId>
+			<artifactId>typeid-kotlin</artifactId>
+			<version>${typeid-kotlin.version}</version>
 		</dependency>
 		<!-- Database end -->
 

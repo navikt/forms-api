@@ -3,6 +3,7 @@ package no.nav.forms.forms.utils
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
+import earth.adi.typeid.TypeId
 import no.nav.forms.forms.repository.FormAttributeRepository
 import no.nav.forms.forms.repository.entity.*
 import no.nav.forms.forms.repository.entity.attributes.FormLockDb
@@ -12,6 +13,7 @@ import no.nav.forms.model.FormLock
 import no.nav.forms.model.FormStatus
 import no.nav.forms.utils.mapDateTime
 import java.time.LocalDateTime
+import java.util.UUID
 import kotlin.jvm.optionals.getOrElse
 
 private val mapper = ObjectMapper()
@@ -19,12 +21,14 @@ private val typeRefJsonNodeObject = object : TypeReference<Map<String, Any>>() {
 private val typeRefJsonNodeArray = object : TypeReference<List<Map<String, Any>>>() {}
 private val typeRefPublishedLanguages = object : TypeReference<List<String>>() {}
 private val publicationOrder = compareBy<FormPublicationEntity>({ it.createdAt }, { it.id ?: Long.MIN_VALUE })
+private const val PUBLICATION_TYPE_ID_PREFIX = "pub"
 
 data class FormPublicationContext(
 	val status: FormStatus,
 	val publishedAt: LocalDateTime? = null,
 	val publishedBy: String? = null,
 	val publishedLanguages: List<String>? = null,
+	val publicationId: UUID? = null,
 )
 
 fun FormEntity.findLatestPublication(): FormPublicationEntity? = this.publications.maxWithOrNull(publicationOrder)
@@ -60,6 +64,7 @@ private fun FormPublicationEntity.toPublicationContext(status: FormStatus): Form
 		publishedAt = this.createdAt,
 		publishedBy = this.createdBy,
 		publishedLanguages = mapper.convertValue(this.languages, typeRefPublishedLanguages),
+		publicationId = this.publicationId,
 	)
 }
 
@@ -102,6 +107,7 @@ fun FormRevisionEntity.toDto(
 		changedBy = if (include("changedBy")) this.createdBy else null,
 		publishedAt = if (include("publishedAt") && publicationContext.publishedAt != null) mapDateTime(publicationContext.publishedAt) else null,
 		publishedBy = if (include("publishedBy")) publicationContext.publishedBy else null,
+		publicationId = if (include("publicationId")) publicationContext.publicationId?.toPublicationTypeId() else null,
 		publishedLanguages = if (include("publishedLanguages")) publicationContext.publishedLanguages else null,
 		deletedAt = if (include("deletedAt") && this.form.deletedAt != null) mapDateTime(this.form.deletedAt as LocalDateTime) else null,
 		deletedBy = if (include("deletedBy")) this.form.deletedBy else null,
@@ -142,6 +148,7 @@ fun FormViewEntity.toFormCompactDto(select: List<String>? = null): FormCompactDt
 		changedBy = if (include("changedBy")) this.changedBy else null,
 		publishedAt = if (include("publishedAt") && this.publishedAt != null) mapDateTime(this.publishedAt as LocalDateTime) else null,
 		publishedBy = if (include("publishedBy")) this.publishedBy else null,
+		publicationId = if (include("publicationId")) this.publicationId?.toPublicationTypeId() else null,
 		deletedAt = if (include("deletedAt") && this.deletedAt != null) mapDateTime(this.deletedAt as LocalDateTime) else null,
 		deletedBy = if (include("deletedBy")) this.deletedBy else null,
 		status = if (include("status")) status else null,
@@ -150,3 +157,5 @@ fun FormViewEntity.toFormCompactDto(select: List<String>? = null): FormCompactDt
 }
 
 fun FormAttributeEntity?.getPropLoader(): () -> Any? = { this?.value }
+
+private fun UUID.toPublicationTypeId(): String = TypeId.of(PUBLICATION_TYPE_ID_PREFIX, this).toString()

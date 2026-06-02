@@ -8,6 +8,8 @@ import org.springframework.stereotype.Repository
 @Repository
 interface FormViewRepository: ViewRepository<FormViewEntity, Long> {
 
+	fun findAllByDeletedAtIsNullAndPublicationStatusEquals(publicationStatus: FormPublicationStatusDb): List<FormViewEntity>
+
 	fun findAllByPublicationStatusEquals(publicationStatus: FormPublicationStatusDb): List<FormViewEntity>
 
 	fun findByPath(path: String): FormViewEntity?

@@ -28,6 +28,7 @@ class FormPublicationsControllerTest : ApplicationTest(setupPublishedGlobalTrans
 			.body
 		assertNull(formBeforePublication.publishedAt)
 		assertNull(formBeforePublication.publishedBy)
+		assertNull(formBeforePublication.publicationId)
 
 		val publishedForm = testFormsApi.publishForm(formPath, formRevision, authToken)
 			.assertSuccess()
@@ -37,12 +38,20 @@ class FormPublicationsControllerTest : ApplicationTest(setupPublishedGlobalTrans
 		assertEquals(formRevision, publishedForm.revision)
 		assertNotNull(publishedForm.publishedAt)
 		assertNotNull(publishedForm.publishedBy)
+		assertNotNull(publishedForm.publicationId)
+		assertTrue(publishedForm.publicationId!!.startsWith("pub_"))
+
+		val publishedFormListEntry = testFormsApi.getPublishedForms()
+			.assertSuccess()
+			.body.first { it.path == formPath }
+		assertEquals(publishedForm.publicationId, publishedFormListEntry.publicationId)
 
 		val formAfterPublication = testFormsApi.getForm(formPath)
 			.assertSuccess()
 			.body
 		assertEquals(publishedForm.publishedAt, formAfterPublication.publishedAt)
 		assertEquals(publishedForm.publishedBy, formAfterPublication.publishedBy)
+		assertEquals(publishedForm.publicationId, formAfterPublication.publicationId)
 	}
 
 	@Test
@@ -591,10 +600,12 @@ class FormPublicationsControllerTest : ApplicationTest(setupPublishedGlobalTrans
 			assertEquals(1, this.count { it.path == formPath })
 		}
 
-		testFormsApi.getPublishedForm(formPath)
+		val publishedPublicationId = testFormsApi.getPublishedForm(formPath)
 			.assertSuccess().body.run {
 				assertNotNull(this.publishedAt)
 				assertNotNull(this.publishedBy)
+				assertNotNull(this.publicationId)
+				this.publicationId
 			}
 
 		testFormsApi.unpublishForm(formPath, authToken)
@@ -619,6 +630,8 @@ class FormPublicationsControllerTest : ApplicationTest(setupPublishedGlobalTrans
 			assertEquals(1, this.revision)
 			assertNotNull(this.publishedAt)
 			assertNotNull(this.publishedBy)
+			assertNotNull(this.publicationId)
+			assertNotEquals(publishedPublicationId, this.publicationId)
 			assertEquals(FormStatus.unpublished, this.status)
 		}
 	}
@@ -709,9 +722,11 @@ class FormPublicationsControllerTest : ApplicationTest(setupPublishedGlobalTrans
 		testFormsApi.publishForm(formPath, formRevision, authToken, LanguageCode.entries)
 			.assertSuccess()
 
-		testFormsApi.getPublishedForm(formPath)
+		val firstPublicationId = testFormsApi.getPublishedForm(formPath)
 			.assertSuccess().body.run {
 				assertEquals(FormStatus.published, this.status)
+				assertNotNull(this.publicationId)
+				this.publicationId
 			}
 
 		testFormsApi.unpublishForm(formPath, authToken)
@@ -719,14 +734,27 @@ class FormPublicationsControllerTest : ApplicationTest(setupPublishedGlobalTrans
 
 		testFormsApi.getPublishedForm(formPath).assertHttpStatus(HttpStatus.NOT_FOUND)
 
+		val unpublishedPublicationId = testFormsApi.getForm(formPath)
+			.assertSuccess().body.run {
+				assertEquals(FormStatus.unpublished, this.status)
+				assertNotNull(this.publicationId)
+				this.publicationId
+			}
+
 		// publish the unpublished form
 		testFormsApi.publishForm(formPath, formRevision, authToken, LanguageCode.entries)
 			.assertSuccess()
 
-		testFormsApi.getPublishedForm(formPath)
+		val republishedPublicationId = testFormsApi.getPublishedForm(formPath)
 			.assertSuccess().body.run {
 				assertEquals(FormStatus.published, this.status)
+				assertNotNull(this.publicationId)
+				this.publicationId
 			}
+
+		assertNotEquals(firstPublicationId, unpublishedPublicationId)
+		assertNotEquals(firstPublicationId, republishedPublicationId)
+		assertNotEquals(unpublishedPublicationId, republishedPublicationId)
 	}
 
 }

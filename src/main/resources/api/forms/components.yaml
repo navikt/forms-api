@@ -157,6 +157,11 @@ components:
           type: string
           description: Hvem publiserte dette skjemaet sist
           example: Lars Larsen
+        publicationId:
+          type: string
+          nullable: true
+          description: Publiseringens eksterne identifikator som TypeID med prefiks `pub`
+          example: pub_01hy0d96sgfx0rh975kqkspchh
         publishedLanguages:
           type: array
           description: Hvilke språk er publisert for dette skjemaet
@@ -212,6 +217,11 @@ components:
           type: string
           description: Hvem publiserte dette skjemaet sist
           example: Lars Larsen
+        publicationId:
+          type: string
+          nullable: true
+          description: Publiseringens eksterne identifikator som TypeID med prefiks `pub`
+          example: pub_01hy0d96sgfx0rh975kqkspchh
         deletedAt:
           type: string
           format: date-time

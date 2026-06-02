@@ -6,13 +6,16 @@ import no.nav.forms.forms.repository.converter.DbJsonArrayConverter
 import no.nav.forms.translations.form.repository.entity.PublishedFormTranslationsEntity
 import no.nav.forms.translations.global.repository.entity.PublishedGlobalTranslationsEntity
 import org.hibernate.Hibernate
+import org.hibernate.annotations.DynamicInsert
 import org.hibernate.annotations.Fetch
 import org.hibernate.annotations.FetchMode
 import org.hibernate.annotations.JdbcTypeCode
 import org.hibernate.type.SqlTypes
 import java.time.LocalDateTime
+import java.util.UUID
 
 @Entity
+@DynamicInsert
 @Table(name = "form_publication")
 class FormPublicationEntity(
 	@Column(
@@ -24,6 +27,10 @@ class FormPublicationEntity(
 
 	@Column(name = "created_by", columnDefinition = "varchar", nullable = false)
 	val createdBy: String,
+
+	@JdbcTypeCode(SqlTypes.UUID)
+	@Column(name = "publication_id", columnDefinition = "uuid", nullable = false, unique = true)
+	val publicationId: UUID? = null,
 
 	@ManyToOne(fetch = FetchType.LAZY, optional = false)
 	@JoinColumn(name = "form_revision_id", nullable = false)
@@ -72,17 +79,23 @@ class FormPublicationEntity(
 		return this::class.simpleName + "(id = $id, createdAt = $createdAt, createdBy = $createdBy)"
 	}
 
-	fun copy(createdAt: LocalDateTime, createdBy: String, status: FormPublicationStatusDb): FormPublicationEntity {
+	fun copy(
+		createdAt: LocalDateTime? = null,
+		createdBy: String? = null,
+		status: FormPublicationStatusDb? = null,
+		publishedGlobalTranslation: PublishedGlobalTranslationsEntity? = null,
+	): FormPublicationEntity {
 		return FormPublicationEntity(
 			id = null,
-			createdAt = createdAt,
-			createdBy = createdBy,
+			createdAt = createdAt ?: this.createdAt,
+			createdBy = createdBy ?: this.createdBy,
+			publicationId = null,
 			formRevision = this.formRevision,
 			form = this.form,
 			publishedFormTranslation = this.publishedFormTranslation,
-			publishedGlobalTranslation = this.publishedGlobalTranslation,
+			publishedGlobalTranslation = publishedGlobalTranslation ?: this.publishedGlobalTranslation,
 			languages = this.languages,
-			status = status,
+			status = status ?: this.status,
 		)
 	}
 
