@@ -2,6 +2,7 @@ package no.nav.forms.translations
 
 import no.nav.forms.ApplicationTest
 import no.nav.forms.model.*
+import no.nav.forms.testutils.createAdminToken
 import no.nav.forms.testutils.MOCK_USER_GROUP_ID
 import no.nav.forms.testutils.createMockToken
 import no.nav.forms.testutils.FormsTestdata
@@ -509,6 +510,61 @@ class EditGlobalTranslationsControllerTest : ApplicationTest() {
 			globalTranslationAfterSecondPublication?.publishedAt,
 			"Should still show published timestamp"
 		)
+	}
+
+	@Test
+	fun testPublishedByIsTakenFromLatestPublication() {
+		val firstPublisherToken = mockOAuth2Server.createAdminToken(
+			navIdent = "A123456",
+			userName = "First Publisher"
+		)
+		val secondPublisherToken = mockOAuth2Server.createAdminToken(
+			navIdent = "B123456",
+			userName = "Second Publisher"
+		)
+		val createResponse = testFormsApi.createGlobalTranslation(
+			NewGlobalTranslationRequest(
+				key = "Greeting",
+				tag = "skjematekster",
+				nb = "Hei",
+			),
+			firstPublisherToken
+		).assertSuccess()
+
+		testFormsApi.publishGlobalTranslations(firstPublisherToken).assertSuccess()
+		testFormsApi.putGlobalTranslation(
+			createResponse.body.id,
+			createResponse.body.revision!!,
+			UpdateGlobalTranslationRequest(
+				nb = "Hei igjen",
+				en = "Hello again",
+			),
+			secondPublisherToken
+		).assertSuccess()
+		testFormsApi.publishGlobalTranslations(secondPublisherToken).assertSuccess()
+
+		val translation = fetchGlobalTranslations().single()
+		assertEquals("Second Publisher", translation.publishedBy)
+	}
+
+	@Test
+	fun testGetLatestRevisionsPreservesInsertionOrder() {
+		val authToken = mockOAuth2Server.createMockToken()
+		val keys = listOf("first-key", "second-key", "third-key")
+
+		keys.forEach { key ->
+			testFormsApi.createGlobalTranslation(
+				NewGlobalTranslationRequest(
+					key = key,
+					tag = "skjematekster",
+					nb = key,
+				),
+				authToken
+			).assertSuccess()
+		}
+
+		val latestRevisions = fetchGlobalTranslations()
+		assertEquals(keys, latestRevisions.map(GlobalTranslationDto::key))
 	}
 
 	private fun fetchGlobalTranslations(): List<GlobalTranslationDto> {

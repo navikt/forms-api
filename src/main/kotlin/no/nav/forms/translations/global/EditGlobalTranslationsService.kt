@@ -25,12 +25,12 @@ class EditGlobalTranslationsService(
 	val globalTranslationRepository: GlobalTranslationRepository,
 	val formTranslationRepository: FormTranslationRepository,
 	val entityManager: EntityManager,
+	private val editableGlobalTranslationsReadService: EditableGlobalTranslationsReadService,
 ) {
 
-	@Transactional
+	@org.springframework.transaction.annotation.Transactional(readOnly = true)
 	fun getLatestRevisions(): List<GlobalTranslationDto> {
-		return globalTranslationRepository.findAllByDeletedAtIsNull()
-			.map(GlobalTranslationEntity::toDto)
+		return editableGlobalTranslationsReadService.getLatestRevisions()
 	}
 
 	@Transactional
