@@ -2,7 +2,7 @@ package no.nav.forms.forms
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import jakarta.persistence.EntityManager
-import jakarta.transaction.Transactional
+import org.springframework.transaction.annotation.Transactional
 import no.nav.forms.exceptions.DuplicateResourceException
 import no.nav.forms.exceptions.InvalidRevisionException
 import no.nav.forms.exceptions.LockedResourceException
@@ -28,6 +28,7 @@ import no.nav.forms.utils.toFormPath
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Propagation
 import java.time.LocalDateTime
 import java.time.OffsetDateTime
 import kotlin.jvm.optionals.getOrElse
@@ -101,7 +102,7 @@ class EditFormsService(
 		)
 	}
 
-	@Transactional(Transactional.TxType.SUPPORTS)
+	@Transactional(propagation = Propagation.SUPPORTS)
 	fun getForm(
 		formPath: String,
 		listOfProperties: List<String>? = null,
@@ -220,7 +221,7 @@ class EditFormsService(
 		)
 	}
 
-	@Transactional(Transactional.TxType.SUPPORTS)
+	@Transactional(propagation = Propagation.SUPPORTS)
 	fun getForms(listOfProperties: List<String>? = null, includeDeleted: Boolean): List<FormCompactDto> {
 		val forms = when {
 			includeDeleted -> formViewRepository.findAll()

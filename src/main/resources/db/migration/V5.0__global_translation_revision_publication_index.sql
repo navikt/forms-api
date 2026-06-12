@@ -1,0 +1,2 @@
+CREATE INDEX idx_pgtr_gtr_id
+	ON published_global_translation_revision (global_translation_revision_id);

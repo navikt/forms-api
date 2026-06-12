@@ -1,6 +1,6 @@
 package no.nav.forms.translations.form
 
-import jakarta.transaction.Transactional
+import org.springframework.transaction.annotation.Transactional
 import no.nav.forms.exceptions.DuplicateResourceException
 import no.nav.forms.exceptions.InvalidRevisionException
 import no.nav.forms.exceptions.ResourceNotFoundException

@@ -228,7 +228,7 @@ Join table between a publication snapshot and the included global translation re
 | Column | Type | Notes |
 | --- | --- | --- |
 | `published_global_translation_id` | `int` | PK, FK -> `published_global_translation.id` |
-| `global_translation_revision_id` | `bigint` | PK, FK -> `global_translation_revision.id` |
+| `global_translation_revision_id` | `bigint` | PK, FK -> `global_translation_revision.id`; indexed for reverse lookup via `idx_pgtr_gtr_id` |
 
 ### `form_translation`
 
@@ -333,6 +333,7 @@ Read-only projection used by the application to load the current form state quic
 
 - `form_attribute_name_idx` on `form_attribute(name)`
 - `form_translation_tag_idx` on `form_translation(tag)`
+- `idx_pgtr_gtr_id` on `published_global_translation_revision(global_translation_revision_id)`
 
 ### Triggers and functions
 
@@ -344,6 +345,7 @@ Read-only projection used by the application to load the current form state quic
 - `form_revision_components` existed in the initial schema but was removed in `V3.1`; components now live in `form_attribute`.
 - `form_revision.properties` was moved into `form_attribute` in `V3.2`.
 - `publication_id` was added to `form_publication` in `V4.0`, then backfilled deterministically from timestamps in `V4.1`.
+- `published_global_translation_revision.global_translation_revision_id` gained the `idx_pgtr_gtr_id` reverse-lookup index in `V5.0`.
 
 ## Flyway migration inputs
 
@@ -362,3 +364,4 @@ This document reflects the schema after applying the current Flyway migration sc
 | 9 | `V3.2__migrate_properties_to_attribute.sql` |
 | 10 | `V4.0__publication_id.sql` |
 | 11 | `V4.1__publication_id_from_created_at.sql` |
+| 12 | `V5.0__global_translation_revision_publication_index.sql` |

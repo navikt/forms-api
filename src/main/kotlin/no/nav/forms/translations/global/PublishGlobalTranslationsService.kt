@@ -1,6 +1,6 @@
 package no.nav.forms.translations.global
 
-import jakarta.transaction.Transactional
+import org.springframework.transaction.annotation.Transactional
 import no.nav.forms.forms.FormPublicationPropagationService
 import no.nav.forms.model.PublishedTranslationsDto
 import no.nav.forms.translations.global.repository.GlobalTranslationRepository

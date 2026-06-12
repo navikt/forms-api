@@ -1,7 +1,7 @@
 package no.nav.forms.translations.global
 
 import jakarta.persistence.EntityManager
-import jakarta.transaction.Transactional
+import org.springframework.transaction.annotation.Transactional
 import no.nav.forms.exceptions.DuplicateResourceException
 import no.nav.forms.exceptions.InvalidRevisionException
 import no.nav.forms.exceptions.ResourceDependencyException
@@ -25,12 +25,12 @@ class EditGlobalTranslationsService(
 	val globalTranslationRepository: GlobalTranslationRepository,
 	val formTranslationRepository: FormTranslationRepository,
 	val entityManager: EntityManager,
+	private val editableGlobalTranslationsReadService: EditableGlobalTranslationsReadService,
 ) {
 
-	@Transactional
+	@Transactional(readOnly = true)
 	fun getLatestRevisions(): List<GlobalTranslationDto> {
-		return globalTranslationRepository.findAllByDeletedAtIsNull()
-			.map(GlobalTranslationEntity::toDto)
+		return editableGlobalTranslationsReadService.getLatestRevisions()
 	}
 
 	@Transactional

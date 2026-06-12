@@ -1,7 +1,7 @@
 package no.nav.forms.forms
 
 import jakarta.persistence.EntityManager
-import jakarta.transaction.Transactional
+import org.springframework.transaction.annotation.Transactional
 import no.nav.forms.exceptions.InvalidRevisionException
 import no.nav.forms.exceptions.ResourceNotFoundException
 import no.nav.forms.forms.repository.FormAttributeRepository
