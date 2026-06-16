@@ -1,6 +1,7 @@
 package no.nav.forms.translations.global.utils
 
 import no.nav.forms.model.GlobalTranslationDto
+import no.nav.forms.translations.global.repository.entity.EditableGlobalTranslationRow
 import no.nav.forms.translations.global.repository.entity.GlobalTranslationEntity
 import no.nav.forms.translations.global.repository.entity.GlobalTranslationRevisionEntity
 import no.nav.forms.translations.global.repository.entity.PublishedGlobalTranslationsEntity
@@ -22,6 +23,22 @@ fun GlobalTranslationEntity.toDto(): GlobalTranslationDto {
 		changedBy = latestRevision.createdBy,
 		publishedAt = if (latestPublication != null) mapDateTime(latestPublication.createdAt) else null,
 		publishedBy = latestPublication?.createdBy,
+	)
+}
+
+fun EditableGlobalTranslationRow.toDto(): GlobalTranslationDto {
+	return GlobalTranslationDto(
+		id = id,
+		key = key,
+		tag = tag,
+		revision = revision,
+		nb = nb,
+		nn = nn,
+		en = en,
+		changedAt = mapDateTime(changedAt),
+		changedBy = changedBy,
+		publishedAt = publishedAt?.let(::mapDateTime),
+		publishedBy = publishedBy,
 	)
 }
 
