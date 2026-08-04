@@ -58,6 +58,10 @@ For flere detaljer, se
 [Customizing Docker host detection](https://java.testcontainers.org/features/configuration/#customizing-docker-host-detection)
 i dokumentasjonen til [Testcontainers](https://java.testcontainers.org/).
 
+Og dersom forms-api kjøres opp lokalt med spring profile local, må man også sette
+-Dapi.version=1.40 fram til vi har oppgradert testcontainers/docker-java til en
+Docker 29-kompatibel versjon.
+
 ### Flyway
 
 Ved bruk av db i docker container under utvikling lokalt er det lett å gjøre Flyway sur dersom man endrer på
