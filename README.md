@@ -52,6 +52,7 @@ testcontainers skal fungere:
 
     export TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock
     export DOCKER_HOST="unix://${HOME}/.colima/docker.sock"
+    unset TESTCONTAINERS_HOST_OVERRIDE
 
 For flere detaljer, se
 [Customizing Docker host detection](https://java.testcontainers.org/features/configuration/#customizing-docker-host-detection)
