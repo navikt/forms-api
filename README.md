@@ -9,6 +9,16 @@ Skjemadefinisjoner, oversettelser og mottaksadresser.
 
 Du må ha Docker kjørende for å kjøre testene og for å starte applikasjonen.
 
+## Mise
+
+Prosjektet bruker [Mise](https://mise.jdx.dev/) til å administrere Java- og Maven-versjoner. Etter at Mise er installert og aktivert i skallet, installer verktøyene som er angitt i `mise.toml`:
+
+`mise install`
+
+Kjør kommandoer gjennom Mise uten å aktivere det i skallet med for eksempel:
+
+`mise exec -- mvn clean install`
+
 ## Kjøre opp applikasjonen lokalt
 
 Det finnes ulike muligheter for hvordan man kan starte applikasjonen lokalt.
