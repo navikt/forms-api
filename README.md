@@ -9,6 +9,16 @@ Skjemadefinisjoner, oversettelser og mottaksadresser.
 
 Du må ha Docker kjørende for å kjøre testene og for å starte applikasjonen.
 
+## Mise
+
+Prosjektet bruker [Mise](https://mise.jdx.dev/) til å administrere Java- og Maven-versjoner. Etter at Mise er installert og aktivert i skallet, installer verktøyene som er angitt i `mise.toml`:
+
+`mise install`
+
+Kjør kommandoer gjennom Mise uten å aktivere det i skallet med for eksempel:
+
+`mise exec -- mvn clean install`
+
 ## Kjøre opp applikasjonen lokalt
 
 Det finnes ulike muligheter for hvordan man kan starte applikasjonen lokalt.
@@ -52,10 +62,15 @@ testcontainers skal fungere:
 
     export TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock
     export DOCKER_HOST="unix://${HOME}/.colima/docker.sock"
+    unset TESTCONTAINERS_HOST_OVERRIDE
 
 For flere detaljer, se
 [Customizing Docker host detection](https://java.testcontainers.org/features/configuration/#customizing-docker-host-detection)
 i dokumentasjonen til [Testcontainers](https://java.testcontainers.org/).
+
+Og dersom forms-api kjøres opp lokalt med spring profile local, må man også sette
+-Dapi.version=1.40 fram til vi har oppgradert testcontainers/docker-java til en
+Docker 29-kompatibel versjon.
 
 ### Flyway
 
