@@ -1,6 +1,6 @@
 package no.nav.forms.forms.repository.entity
 
-import com.fasterxml.jackson.databind.JsonNode
+import tools.jackson.databind.JsonNode
 import jakarta.persistence.*
 import no.nav.forms.forms.repository.converter.DbJsonArrayConverter
 import no.nav.forms.translations.form.repository.entity.PublishedFormTranslationsEntity
