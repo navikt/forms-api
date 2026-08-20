@@ -1,32 +1,30 @@
 package no.nav.forms.config
 
-import com.fasterxml.jackson.core.JsonGenerator
-import com.fasterxml.jackson.databind.JsonSerializer
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.databind.SerializerProvider
-import com.fasterxml.jackson.databind.module.SimpleModule
+import tools.jackson.core.JsonGenerator
+import tools.jackson.databind.SerializationContext
+import tools.jackson.databind.ValueSerializer
+import tools.jackson.databind.module.SimpleModule
+import org.springframework.boot.jackson.autoconfigure.JsonMapperBuilderCustomizer
+import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
 
 
 @Configuration
-class JacksonConfig(
-	objectMapper: ObjectMapper,
-) {
-
-	init {
+class JacksonConfig {
+	@Bean
+	fun jsonMapperBuilderCustomizer() = JsonMapperBuilderCustomizer { builder ->
 		val module = SimpleModule()
 		module.addSerializer(OffsetDateTime::class.java, CustomOffsetDateTimeSerializer())
-		objectMapper.registerModule(module)
+		builder.addModule(module)
 	}
-
 }
 
-class CustomOffsetDateTimeSerializer : JsonSerializer<OffsetDateTime>() {
+class CustomOffsetDateTimeSerializer : ValueSerializer<OffsetDateTime>() {
 	private val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSX")
 
-	override fun serialize(value: OffsetDateTime, gen: JsonGenerator, serializers: SerializerProvider) {
+	override fun serialize(value: OffsetDateTime, gen: JsonGenerator, context: SerializationContext) {
 		gen.writeString(value.format(formatter))
 	}
 }

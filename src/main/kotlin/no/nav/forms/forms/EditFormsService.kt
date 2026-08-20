@@ -1,6 +1,6 @@
 package no.nav.forms.forms
 
-import com.fasterxml.jackson.databind.ObjectMapper
+import tools.jackson.databind.ObjectMapper
 import jakarta.persistence.EntityManager
 import org.springframework.transaction.annotation.Transactional
 import no.nav.forms.exceptions.DuplicateResourceException
