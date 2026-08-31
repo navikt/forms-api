@@ -6,6 +6,7 @@ import no.nav.forms.model.FormStatus
 import no.nav.forms.model.LockFormRequest
 import no.nav.forms.model.NewFormTranslationRequestDto
 import no.nav.forms.model.UpdateFormTranslationRequest
+import no.nav.forms.model.UpdateFormRequest
 import no.nav.forms.testutils.createMockToken
 import no.nav.forms.testutils.FormsTestdata
 import no.nav.forms.testutils.MOCK_USER_GROUP_ID
@@ -113,6 +114,50 @@ class EditFormsControllerTest : ApplicationTest(setupPublishedGlobalTranslations
 		assertEquals("AAP", updatedForm.properties?.get("tema"))
 		assertEquals(createRequest.title, updatedForm.title)
 		assertEquals(createRequest.components.size, updatedForm.components?.size)
+	}
+
+	@Test
+	fun testUpdateFormWithNullValuesInComponents() {
+		val authToken = mockOAuth2Server.createMockToken()
+		val form = testFormsApi.createForm(FormsTestdata.newFormRequest(), authToken)
+			.assertSuccess()
+			.body
+		val request = """
+			{
+			  "components": [
+			    {
+			      "type": "panel",
+			      "defaultValue": null,
+			      "components": [
+			        {"type": "textfield", "defaultValue": null}
+			      ]
+			    }
+			  ],
+			  "properties": {"tema": "AAP", "custom": null},
+			  "introPage": {"enabled": true, "introduction": null}
+			}
+		""".trimIndent()
+
+		val deserializedRequest = objectMapper.readValue(request, UpdateFormRequest::class.java)
+		assertTrue(deserializedRequest.components!![0].containsKey("defaultValue"))
+		assertNull(deserializedRequest.components[0]["defaultValue"])
+		assertTrue(deserializedRequest.properties!!.containsKey("custom"))
+		assertNull(deserializedRequest.properties["custom"])
+		assertTrue(deserializedRequest.introPage!!.containsKey("introduction"))
+		assertNull(deserializedRequest.introPage["introduction"])
+
+		val updatedForm = testFormsApi.updateFormJson(form.path!!, form.revision!!, request, authToken)
+			.assertSuccess()
+			.body
+		assertEquals("panel", updatedForm.components!![0]["type"])
+		assertTrue(updatedForm.components[0].containsKey("defaultValue"))
+		assertNull(updatedForm.components[0]["defaultValue"])
+		assertEquals("AAP", updatedForm.properties!!["tema"])
+		assertTrue(updatedForm.properties.containsKey("custom"))
+		assertNull(updatedForm.properties["custom"])
+		assertEquals(true, updatedForm.introPage!!["enabled"])
+		assertTrue(updatedForm.introPage.containsKey("introduction"))
+		assertNull(updatedForm.introPage["introduction"])
 	}
 
 	@Test

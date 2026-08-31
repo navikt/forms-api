@@ -4,6 +4,8 @@ import tools.jackson.core.JsonGenerator
 import tools.jackson.databind.SerializationContext
 import tools.jackson.databind.ValueSerializer
 import tools.jackson.databind.module.SimpleModule
+import tools.jackson.module.kotlin.KotlinFeature
+import tools.jackson.module.kotlin.KotlinModule
 import org.springframework.boot.jackson.autoconfigure.JsonMapperBuilderCustomizer
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -18,6 +20,8 @@ class JacksonConfig {
 		val module = SimpleModule()
 		module.addSerializer(OffsetDateTime::class.java, CustomOffsetDateTimeSerializer())
 		builder.addModule(module)
+		// Remove when https://github.com/FasterXML/jackson-module-kotlin/issues/1064 is fixed.
+		builder.addModule(KotlinModule.Builder().disable(KotlinFeature.StrictNullChecks).build())
 	}
 }
 

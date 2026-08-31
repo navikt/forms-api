@@ -51,9 +51,9 @@ class EditFormsService(
 	fun createForm(
 		skjemanummer: Skjemanummer,
 		title: String,
-		components: List<Map<String, Any>>,
-		properties: Map<String, Any>,
-		introPage: Map<String, Any>?,
+		components: List<Map<String, Any?>>,
+		properties: Map<String, Any?>,
+		introPage: Map<String, Any?>?,
 		userId: String,
 	): FormDto {
 		val formPath = skjemanummer.toFormPath()
@@ -157,9 +157,9 @@ class EditFormsService(
 		formPath: String,
 		revision: Int,
 		title: String? = null,
-		components: List<Map<String, Any>>? = null,
-		properties: Map<String, Any>? = null,
-		introPage: Map<String, Any>? = null,
+		components: List<Map<String, Any?>>? = null,
+		properties: Map<String, Any?>? = null,
+		introPage: Map<String, Any?>? = null,
 		userId: String
 	): FormDto {
 		val form = formRepository.findByPathAndDeletedAtIsNull(formPath).also {

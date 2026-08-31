@@ -17,8 +17,8 @@ import java.util.UUID
 import kotlin.jvm.optionals.getOrElse
 
 private val mapper = ObjectMapper()
-private val typeRefJsonNodeObject = object : TypeReference<Map<String, Any>>() {}
-private val typeRefJsonNodeArray = object : TypeReference<List<Map<String, Any>>>() {}
+private val typeRefJsonNodeObject = object : TypeReference<Map<String, Any?>>() {}
+private val typeRefJsonNodeArray = object : TypeReference<List<Map<String, Any?>>>() {}
 private val typeRefPublishedLanguages = object : TypeReference<List<String>>() {}
 private val publicationOrder = compareBy<FormPublicationEntity>({ it.createdAt }, { it.id ?: Long.MIN_VALUE })
 private const val PUBLICATION_TYPE_ID_PREFIX = "pub"

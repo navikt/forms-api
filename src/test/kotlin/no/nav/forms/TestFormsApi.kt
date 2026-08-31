@@ -248,6 +248,28 @@ class TestFormsApi(
 		return FormsApiResponse(response.statusCode, body)
 	}
 
+	fun updateFormJson(
+		formPath: String,
+		revision: Int,
+		request: String,
+		authToken: String? = null,
+	): FormsApiResponse<FormDto> {
+		val headers = httpHeaders(
+			authToken,
+			mapOf(
+				formsapiEntityRevisionHeaderName to revision.toString(),
+				HttpHeaders.CONTENT_TYPE to MediaType.APPLICATION_JSON_VALUE,
+			),
+		)
+		val response = restTemplate.exchange<String>(
+			"$formsBaseUrl/$formPath",
+			HttpMethod.PUT,
+			HttpEntity(request, headers),
+		)
+		val body = parseSingleResponse(response, FormDto::class.java)
+		return FormsApiResponse(response.statusCode, body)
+	}
+
 	fun getForm(formPath: String, includeDeleted: Boolean? = false, select: String? = null): FormsApiResponse<FormDto> {
 		return getForm(formPath, includeDeleted, select, revision = null)
 	}
