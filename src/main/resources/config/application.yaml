@@ -10,8 +10,9 @@ spring:
       max-request-size: 100MB
   jackson:
     default-property-inclusion: non_null
-    serialization:
-      WRITE_DATES_AS_TIMESTAMPS: false
+    datatype:
+      datetime:
+        WRITE_DATES_AS_TIMESTAMPS: false
   main:
     banner-mode: off
   jpa:

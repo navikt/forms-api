@@ -1,8 +1,8 @@
 package no.nav.forms.utils
 
 import com.fasterxml.jackson.annotation.JsonCreator
-import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.ObjectMapper
+import tools.jackson.databind.JsonNode
+import tools.jackson.databind.ObjectMapper
 
 enum class LanguageCode(val value: String) {
 	NB("nb"),
@@ -27,8 +27,8 @@ fun String.splitLanguageCodes(): List<LanguageCode> = split(",").map { LanguageC
 		}
 	}
 
-fun JsonNode.toLanguageCodes(): List<LanguageCode> = map { LanguageCode.validate(it.asText()) }
+fun JsonNode.toLanguageCodes(): List<LanguageCode> = values().map { LanguageCode.validate(it.asText()) }
 
-fun List<LanguageCode>.toJsonNode(): JsonNode = ObjectMapper().valueToTree(map { it.value })
+fun List<LanguageCode>.toJsonNode(): JsonNode = ObjectMapper().valueToTree<JsonNode>(map { it.value })
 
 fun List<LanguageCode>.hasDuplicates(): Boolean = this.distinct().size != this.size

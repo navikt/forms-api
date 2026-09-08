@@ -97,7 +97,7 @@ class RestExceptionHandler {
 	fun handleMissingRequestHeaderException(exception: MissingRequestHeaderException): ResponseEntity<ErrorResponseDto> {
 		val status = HttpStatus.BAD_REQUEST
 		logger.info(exception.message, exception)
-		return ResponseEntity.status(status).body(ErrorResponseDto(exception.message, getCorrelationId()))
+		return ResponseEntity.status(status).body(ErrorResponseDto(exception.message ?: status.reasonPhrase, getCorrelationId()))
 	}
 
 	@ExceptionHandler

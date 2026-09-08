@@ -9,12 +9,11 @@ import no.nav.forms.testutils.createMockToken
 import no.nav.forms.testutils.toURI
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
-import org.springframework.boot.test.web.client.getForEntity
+import org.springframework.boot.resttestclient.getForEntity
 import org.springframework.http.HttpEntity
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpMethod
 import org.springframework.http.HttpStatus
-import org.springframework.util.MultiValueMap
 
 class RecipientsControllerTest : ApplicationTest() {
 
@@ -110,7 +109,7 @@ class RecipientsControllerTest : ApplicationTest() {
 		assertEquals(HttpStatus.FORBIDDEN.value(), response.statusCode.value())
 	}
 
-	private fun httpHeaders(token: String): MultiValueMap<String, String> {
+	private fun httpHeaders(token: String): HttpHeaders {
 		val headers = HttpHeaders()
 		headers.add("Authorization", "Bearer $token")
 		return headers

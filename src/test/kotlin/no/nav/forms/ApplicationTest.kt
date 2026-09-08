@@ -1,6 +1,6 @@
 package no.nav.forms
 
-import com.fasterxml.jackson.databind.ObjectMapper
+import tools.jackson.databind.ObjectMapper
 import com.google.cloud.storage.Storage
 import no.nav.forms.config.StaticPdfConfig
 import no.nav.forms.model.NewGlobalTranslationRequest
@@ -12,13 +12,15 @@ import org.flywaydb.core.Flyway
 import org.junit.jupiter.api.BeforeEach
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
-import org.springframework.boot.test.web.client.TestRestTemplate
+import org.springframework.boot.resttestclient.TestRestTemplate
+import org.springframework.boot.resttestclient.autoconfigure.AutoConfigureTestRestTemplate
 import org.springframework.test.context.ActiveProfiles
 
 @ActiveProfiles("test")
 @SpringBootTest(
 	webEnvironment = SpringBootTest.WebEnvironment.DEFINED_PORT
 )
+@AutoConfigureTestRestTemplate
 @EnableMockOAuth2Server
 abstract class ApplicationTest(val setupPublishedGlobalTranslations: Boolean = false) {
 

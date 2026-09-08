@@ -1,8 +1,8 @@
 package no.nav.forms.forms.utils
 
-import com.fasterxml.jackson.core.type.TypeReference
-import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.ObjectMapper
+import tools.jackson.core.type.TypeReference
+import tools.jackson.databind.JsonNode
+import tools.jackson.databind.ObjectMapper
 import earth.adi.typeid.TypeId
 import no.nav.forms.forms.repository.FormAttributeRepository
 import no.nav.forms.forms.repository.entity.*
@@ -17,8 +17,8 @@ import java.util.UUID
 import kotlin.jvm.optionals.getOrElse
 
 private val mapper = ObjectMapper()
-private val typeRefJsonNodeObject = object : TypeReference<Map<String, Any>>() {}
-private val typeRefJsonNodeArray = object : TypeReference<List<Map<String, Any>>>() {}
+private val typeRefJsonNodeObject = object : TypeReference<Map<String, Any?>>() {}
+private val typeRefJsonNodeArray = object : TypeReference<List<Map<String, Any?>>>() {}
 private val typeRefPublishedLanguages = object : TypeReference<List<String>>() {}
 private val publicationOrder = compareBy<FormPublicationEntity>({ it.createdAt }, { it.id ?: Long.MIN_VALUE })
 private const val PUBLICATION_TYPE_ID_PREFIX = "pub"

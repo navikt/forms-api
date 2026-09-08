@@ -19,7 +19,8 @@ components:
       example: NAV 12-34.56
     Component:
       type: object
-      additionalProperties: {}
+      additionalProperties:
+        nullable: true
       description: En komponent i skjemadefinisjonen (json)
       example: {"type": "panel", "label": "Veiledning"}
     Components:
@@ -30,12 +31,14 @@ components:
         $ref: "#/components/schemas/Component"
     Properties:
       type: object
-      additionalProperties: {}
+      additionalProperties:
+        nullable: true
       description: Et objekt med skjemaets egenskaper (json)
       example: {"tema": "AAP", "innsending": "PAPIR_OG_DIGITAL"}
     IntroPage:
       type: object
-      additionalProperties: {}
+      additionalProperties:
+        nullable: true
       description: Et objekt med skjemaets introduksjonsside (json)
       example: {"enabled": true, "introduction": "Her er skjemaet", sections: {"scope": {"title": "Her kan du søke om:"}}}
     FormStatus:

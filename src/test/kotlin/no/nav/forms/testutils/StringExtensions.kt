@@ -4,7 +4,7 @@ import org.springframework.web.util.UriComponentsBuilder
 import java.net.URI
 
 fun String.toURI(): URI {
-	val uri = UriComponentsBuilder.fromHttpUrl(this)
+	val uri = UriComponentsBuilder.fromUriString(this)
 		.build()
 		.toUri()
 	return uri

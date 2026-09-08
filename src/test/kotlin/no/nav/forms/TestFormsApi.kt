@@ -1,13 +1,13 @@
 package no.nav.forms
 
-import com.fasterxml.jackson.databind.ObjectMapper
+import tools.jackson.databind.ObjectMapper
 import no.nav.forms.model.*
 import no.nav.forms.testutils.FileUtils
 import no.nav.forms.utils.LanguageCode
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Assertions.assertFalse
-import org.springframework.boot.test.web.client.TestRestTemplate
-import org.springframework.boot.test.web.client.exchange
+import org.springframework.boot.resttestclient.TestRestTemplate
+import org.springframework.boot.resttestclient.exchange
 import org.springframework.core.ParameterizedTypeReference
 import org.springframework.http.*
 import org.springframework.util.LinkedMultiValueMap
@@ -113,7 +113,7 @@ class TestFormsApi(
 	private fun httpHeaders(
 		token: String?,
 		additionalHeaders: Map<String, String>? = emptyMap()
-	): MultiValueMap<String, String> {
+	): HttpHeaders {
 		val headers = HttpHeaders()
 		token?.let { headers.add("Authorization", "Bearer $it") }
 		additionalHeaders?.forEach { headers.add(it.key, it.value) }
@@ -243,6 +243,28 @@ class TestFormsApi(
 			"$formsBaseUrl/$formPath",
 			HttpMethod.PUT,
 			HttpEntity(request, httpHeaders(authToken, headers.plus(additionalHeaders)))
+		)
+		val body = parseSingleResponse(response, FormDto::class.java)
+		return FormsApiResponse(response.statusCode, body)
+	}
+
+	fun updateFormJson(
+		formPath: String,
+		revision: Int,
+		request: String,
+		authToken: String? = null,
+	): FormsApiResponse<FormDto> {
+		val headers = httpHeaders(
+			authToken,
+			mapOf(
+				formsapiEntityRevisionHeaderName to revision.toString(),
+				HttpHeaders.CONTENT_TYPE to MediaType.APPLICATION_JSON_VALUE,
+			),
+		)
+		val response = restTemplate.exchange<String>(
+			"$formsBaseUrl/$formPath",
+			HttpMethod.PUT,
+			HttpEntity(request, headers),
 		)
 		val body = parseSingleResponse(response, FormDto::class.java)
 		return FormsApiResponse(response.statusCode, body)
