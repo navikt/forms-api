@@ -1,0 +1,23 @@
+post:
+  operationId: startFormClear
+  tags: [form-clear]
+  summary: Start an audited, resumable preprod clear job
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: "./form-clear-components.yaml#/components/schemas/FormClearStartRequest"
+  responses:
+    '201':
+      description: Job created
+      content:
+        application/json:
+          schema:
+            $ref: "./form-clear-components.yaml#/components/schemas/FormClearStarted"
+    '403':
+      description: Production environment or unauthorized admin
+    '409':
+      description: Another job is active or the confirmed preview no longer matches

@@ -91,6 +91,23 @@ erDiagram
         varchar status
     }
 
+    FORM_CLEAR_JOB {
+        uuid id PK
+        varchar status
+        jsonb keep_set
+        jsonb target_paths
+        varchar owner
+        timestamptz lease_until
+    }
+
+    FORM_CLEAR_JOB_ITEM {
+        uuid job_id PK, FK
+        varchar path PK
+        varchar outcome
+    }
+
+    FORM_CLEAR_JOB ||--o{ FORM_CLEAR_JOB_ITEM : records
+
     FORM ||--o{ FORM_REVISION : has
     FORM ||--o{ FORM_TRANSLATION : has
     FORM ||--o{ PUBLISHED_FORM_TRANSLATION : snapshots
@@ -318,6 +335,12 @@ Read-only projection used by the application to load the current form state quic
 
 ## Constraints and business rules
 
+### Form clear job audit
+
+`form_clear_job` records every preprod clear run. Its `id` is a UUID primary key; `status` is one of `pending`, `running`, `completed`, or `failed`. `keep_set` stores the request as JSONB and `target_paths` stores the resolved deletion paths as JSONB. `owner` and `lease_until` fence the current worker; `created_by` is the verified admin NAV ident, `created_at` defaults to the current timestamp, and `finished_at` is set on completion. The partial unique index `one_active_form_clear_job` permits only one job in `pending` or `running` status across all pods sharing the database.
+
+`form_clear_job_item` has the composite primary key (`job_id`, `path`) and a foreign key to `form_clear_job`. Its `outcome` is `deleted`, `kept`, or `failed`; `error` holds a failure summary and `processed_at` defaults to the current timestamp. Kept paths are recorded when a job is created; target outcomes are recorded as each form is processed. The job tables do not reference `form`, since cleared forms no longer exist.
+
 ### Key uniqueness rules
 
 - `recipient.recipient_id` is unique.
@@ -334,6 +357,7 @@ Read-only projection used by the application to load the current form state quic
 - `form_attribute_name_idx` on `form_attribute(name)`
 - `form_translation_tag_idx` on `form_translation(tag)`
 - `idx_pgtr_gtr_id` on `published_global_translation_revision(global_translation_revision_id)`
+- `one_active_form_clear_job` on a constant for jobs with status `pending` or `running`
 
 ### Triggers and functions
 
@@ -346,6 +370,7 @@ Read-only projection used by the application to load the current form state quic
 - `form_revision.properties` was moved into `form_attribute` in `V3.2`.
 - `publication_id` was added to `form_publication` in `V4.0`, then backfilled deterministically from timestamps in `V4.1`.
 - `published_global_translation_revision.global_translation_revision_id` gained the `idx_pgtr_gtr_id` reverse-lookup index in `V5.0`.
+- `V6.0` added the clear job audit tables and their active-job index. It did not change form tables, views, or triggers.
 
 ## Flyway migration inputs
 
@@ -365,3 +390,4 @@ This document reflects the schema after applying the current Flyway migration sc
 | 10 | `V4.0__publication_id.sql` |
 | 11 | `V4.1__publication_id_from_created_at.sql` |
 | 12 | `V5.0__global_translation_revision_publication_index.sql` |
+| 13 | `V6.0__form_clear_jobs.sql` |

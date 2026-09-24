@@ -1,0 +1,21 @@
+post:
+  operationId: previewFormClear
+  tags: [form-clear]
+  summary: Preview the resolved preprod keep-set without writing data
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: "./form-clear-components.yaml#/components/schemas/FormClearRequest"
+  responses:
+    '200':
+      description: Resolved form paths
+      content:
+        application/json:
+          schema:
+            $ref: "./form-clear-components.yaml#/components/schemas/FormClearPreview"
+    '403':
+      description: Production environment or unauthorized admin

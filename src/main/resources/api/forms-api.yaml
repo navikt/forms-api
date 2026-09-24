@@ -26,8 +26,22 @@ tags:
     description: Publisering av skjemadefinisjoner
   - name: static-pdf
     description: Statiske PDFer for skjemaer
+  - name: form-clear
+    description: Admin-only preprod form clearing
 
 paths:
+  /api/form-clear/preview:
+    $ref: "./forms/form-clear-preview.yaml"
+
+  /api/form-clear/jobs:
+    $ref: "./forms/form-clear-jobs.yaml"
+
+  /api/form-clear/jobs/active:
+    $ref: "./forms/form-clear-active-job.yaml"
+
+  /api/form-clear/jobs/{jobId}:
+    $ref: "./forms/form-clear-job.yaml"
+
   /v1/recipients:
     $ref: "./recipients/recipients.yaml"
 

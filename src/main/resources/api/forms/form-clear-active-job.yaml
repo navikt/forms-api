@@ -1,0 +1,17 @@
+get:
+  operationId: getActiveFormClearJob
+  tags: [form-clear]
+  summary: Find the pending or running clear job
+  security:
+    - bearerAuth: []
+  responses:
+    '200':
+      description: Active job status and per-form outcomes
+      content:
+        application/json:
+          schema:
+            $ref: "./form-clear-components.yaml#/components/schemas/FormClearJob"
+    '403':
+      description: Production environment or unauthorized admin
+    '404':
+      description: No pending or running job

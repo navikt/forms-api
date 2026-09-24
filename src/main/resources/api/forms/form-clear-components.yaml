@@ -1,0 +1,82 @@
+components:
+  schemas:
+    FormClearRequest:
+      type: object
+      required: [keepTestForms, keepLockedForms, keepFormPaths]
+      properties:
+        keepTestForms:
+          type: boolean
+        keepLockedForms:
+          type: boolean
+        keepFormPaths:
+          type: array
+          items:
+            type: string
+    FormClearStartRequest:
+      allOf:
+        - $ref: "#/components/schemas/FormClearRequest"
+        - type: object
+          required: [expectedToDelete, expectedKept]
+          properties:
+            expectedToDelete:
+              type: array
+              uniqueItems: true
+              items:
+                type: string
+            expectedKept:
+              type: array
+              uniqueItems: true
+              items:
+                type: string
+    FormClearPreview:
+      type: object
+      required: [toDelete, kept]
+      properties:
+        toDelete:
+          type: array
+          items:
+            type: string
+        kept:
+          type: array
+          items:
+            type: string
+    FormClearStarted:
+      type: object
+      required: [jobId]
+      properties:
+        jobId:
+          type: string
+          format: uuid
+    FormClearJob:
+      type: object
+      required: [jobId, status, totalCount, processedCount, deletedCount, keptCount, failedCount, items]
+      properties:
+        jobId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [pending, running, completed, failed]
+        totalCount:
+          type: integer
+        processedCount:
+          type: integer
+        deletedCount:
+          type: integer
+        keptCount:
+          type: integer
+        failedCount:
+          type: integer
+        items:
+          type: array
+          items:
+            type: object
+            required: [path, outcome]
+            properties:
+              path:
+                type: string
+              outcome:
+                type: string
+                enum: [deleted, kept, failed]
+              error:
+                type: string
