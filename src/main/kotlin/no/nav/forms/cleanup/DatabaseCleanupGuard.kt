@@ -1,4 +1,4 @@
-package no.nav.forms.forms
+package no.nav.forms.cleanup
 
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest

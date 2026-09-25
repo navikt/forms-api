@@ -1,4 +1,4 @@
-package no.nav.forms.forms
+package no.nav.forms.cleanup
 
 import no.nav.forms.model.DatabaseCleanupRequest
 import org.springframework.jdbc.core.JdbcTemplate

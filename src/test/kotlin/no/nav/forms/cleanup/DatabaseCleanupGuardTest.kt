@@ -1,4 +1,4 @@
-package no.nav.forms.forms
+package no.nav.forms.cleanup
 
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse

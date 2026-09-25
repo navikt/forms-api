@@ -1,4 +1,4 @@
-package no.nav.forms.forms
+package no.nav.forms.cleanup
 
 import no.nav.forms.api.DatabaseCleanupApi
 import no.nav.forms.config.AzureAdConfig
