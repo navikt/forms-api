@@ -18,7 +18,7 @@ import java.util.UUID
 
 @RestController
 @ProtectedWithClaims(issuer = AzureAdConfig.ISSUER, claimMap = ["${AzureAdConfig.CLAIM_NAV_IDENT}=*"])
-class FormClearController(
+class DatabaseCleanupController(
     private val service: FormClearService,
     private val security: SecurityContextHolder,
 ) : DatabaseCleanupApi {

@@ -14,7 +14,7 @@ import org.springframework.http.HttpStatus
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
     properties = ["NAIS_CLUSTER_NAME=prod-gcp"]
 )
-class FormClearProdClusterControllerTest : ApplicationTest() {
+class DatabaseCleanupProdClusterControllerTest : ApplicationTest() {
     @LocalServerPort private var port: Int = 0
 
     @Test

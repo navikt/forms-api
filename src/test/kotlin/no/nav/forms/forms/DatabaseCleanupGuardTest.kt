@@ -9,7 +9,7 @@ import org.springframework.mock.web.MockHttpServletRequest
 import org.springframework.mock.web.MockHttpServletResponse
 import jakarta.servlet.FilterChain
 
-class FormClearGuardTest {
+class DatabaseCleanupGuardTest {
     @Test
     fun `production profile rejects before the rest of the filter chain`() {
         verifyDenied(MockEnvironment().apply { setActiveProfiles("prod") })
@@ -24,7 +24,7 @@ class FormClearGuardTest {
     fun `preprod reaches authentication and body parsing`() {
         val response = MockHttpServletResponse()
         var continued = false
-        FormClearGuard(MockEnvironment().apply { setActiveProfiles("preprod") }).doFilter(
+        DatabaseCleanupGuard(MockEnvironment().apply { setActiveProfiles("preprod") }).doFilter(
             MockHttpServletRequest("POST", "/api/database-cleanup/jobs"), response,
             FilterChain { _, _ -> continued = true }
         )
@@ -34,7 +34,7 @@ class FormClearGuardTest {
     private fun verifyDenied(environment: MockEnvironment) {
         val response = MockHttpServletResponse()
         var continued = false
-        FormClearGuard(environment).doFilter(
+        DatabaseCleanupGuard(environment).doFilter(
             MockHttpServletRequest("POST", "/api/database-cleanup/jobs").apply {
                 setContent("{malformed".toByteArray())
             }, response,

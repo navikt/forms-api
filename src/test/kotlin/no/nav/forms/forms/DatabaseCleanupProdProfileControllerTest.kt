@@ -22,7 +22,7 @@ import org.springframework.test.context.ActiveProfiles
         "NAIS_DATABASE_FORMS_API_FORMS_API_DB_JDBC_URL=jdbc:postgresql://localhost/unused",
     ]
 )
-class FormClearProdProfileControllerTest : ApplicationTest() {
+class DatabaseCleanupProdProfileControllerTest : ApplicationTest() {
     @LocalServerPort private var port: Int = 0
 
     @Test

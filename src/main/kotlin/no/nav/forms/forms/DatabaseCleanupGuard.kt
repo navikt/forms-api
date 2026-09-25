@@ -10,7 +10,7 @@ import org.springframework.core.Ordered
 import org.springframework.core.env.Environment
 import org.springframework.web.filter.OncePerRequestFilter
 
-class FormClearGuard(private val environment: Environment) : OncePerRequestFilter() {
+class DatabaseCleanupGuard(private val environment: Environment) : OncePerRequestFilter() {
     override fun doFilterInternal(request: HttpServletRequest, response: HttpServletResponse, chain: FilterChain) {
         if (environment.activeProfiles.contains("prod") || environment.getProperty("NAIS_CLUSTER_NAME") == "prod-gcp") {
             response.sendError(HttpServletResponse.SC_FORBIDDEN)
@@ -21,10 +21,10 @@ class FormClearGuard(private val environment: Environment) : OncePerRequestFilte
 }
 
 @Configuration
-class FormClearGuardConfig {
+class DatabaseCleanupGuardConfig {
     @Bean
-    fun formClearGuard(environment: Environment): FilterRegistrationBean<FormClearGuard> =
-        FilterRegistrationBean(FormClearGuard(environment)).apply {
+    fun databaseCleanupGuard(environment: Environment): FilterRegistrationBean<DatabaseCleanupGuard> =
+        FilterRegistrationBean(DatabaseCleanupGuard(environment)).apply {
             addUrlPatterns("/api/database-cleanup/*")
             order = Ordered.HIGHEST_PRECEDENCE
         }

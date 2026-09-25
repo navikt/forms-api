@@ -22,7 +22,7 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
-class FormClearControllerTest : ApplicationTest(setupPublishedGlobalTranslations = true) {
+class DatabaseCleanupControllerTest : ApplicationTest(setupPublishedGlobalTranslations = true) {
     @Autowired lateinit var clear: FormClearService
     @Autowired lateinit var jdbc: JdbcTemplate
 
