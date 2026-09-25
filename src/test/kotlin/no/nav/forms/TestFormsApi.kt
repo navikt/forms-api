@@ -4,47 +4,12 @@ import tools.jackson.databind.ObjectMapper
 import no.nav.forms.model.*
 import no.nav.forms.testutils.FileUtils
 import no.nav.forms.utils.LanguageCode
-import org.junit.jupiter.api.Assertions.assertTrue
-import org.junit.jupiter.api.Assertions.assertFalse
 import org.springframework.boot.resttestclient.TestRestTemplate
 import org.springframework.boot.resttestclient.exchange
 import org.springframework.core.ParameterizedTypeReference
 import org.springframework.http.*
 import org.springframework.util.LinkedMultiValueMap
 import org.springframework.util.MultiValueMap
-import kotlin.test.assertEquals
-
-data class FormsApiResponse<T>(
-	val statusCode: HttpStatusCode,
-	private val response: Pair<T?, ErrorResponseDto?>,
-) {
-	val body: T
-		get() {
-			assertTrue(statusCode.is2xxSuccessful, "Expected success")
-			return response.first!!
-		}
-
-	val errorBody: ErrorResponseDto
-		get() {
-			assertFalse(statusCode.is2xxSuccessful, "Expected failure")
-			return response.second!!
-		}
-
-	fun assertSuccess(): FormsApiResponse<T> {
-		assertTrue(statusCode.is2xxSuccessful, "Expected successful response code")
-		return this
-	}
-
-	fun assertClientError(): FormsApiResponse<T> {
-		assertTrue(statusCode.is4xxClientError, "Expected client error")
-		return this
-	}
-
-	fun assertHttpStatus(status: HttpStatus): FormsApiResponse<T> {
-		assertEquals(status.value(), statusCode.value())
-		return this
-	}
-}
 
 private const val formsapiEntityRevisionHeaderName = "Formsapi-Entity-Revision"
 
@@ -494,26 +459,11 @@ class TestFormsApi(
 		return FormsApiResponse(response.statusCode, body)
 	}
 
-	private fun <T> parseListResponse(
-		response: ResponseEntity<String>,
-		clazz: Class<T>
-	): Pair<List<T>?, ErrorResponseDto?> =
-		when {
-			response.statusCode.is2xxSuccessful -> Pair(
-				objectMapper.readValue(
-					response.body,
-					objectMapper.typeFactory.constructCollectionType(List::class.java, clazz)
-				), null
-			)
+	private fun <T> parseListResponse(response: ResponseEntity<String>, clazz: Class<T>) =
+		parseListResponse(response, clazz, objectMapper)
 
-			else -> Pair(null, objectMapper.readValue(response.body, ErrorResponseDto::class.java))
-		}
-
-	private fun <T> parseSingleResponse(response: ResponseEntity<String>, clazz: Class<T>): Pair<T?, ErrorResponseDto?> =
-		when {
-			response.statusCode.is2xxSuccessful -> Pair(objectMapper.readValue(response.body, clazz), null)
-			else -> Pair(null, objectMapper.readValue(response.body, ErrorResponseDto::class.java))
-		}
+	private fun <T> parseSingleResponse(response: ResponseEntity<String>, clazz: Class<T>) =
+		parseSingleResponse(response, clazz, objectMapper)
 
 	private fun buildQueryString(vararg queryParams: Pair<String, String?>): String {
 		val params = queryParams

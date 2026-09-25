@@ -1,0 +1,21 @@
+post:
+  operationId: previewDatabaseCleanup
+  tags: [database-cleanup]
+  summary: Preview the resolved preprod keep-set without writing data
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: "./components.yaml#/components/schemas/DatabaseCleanupRequest"
+  responses:
+    '200':
+      description: Resolved form paths
+      content:
+        application/json:
+          schema:
+            $ref: "./components.yaml#/components/schemas/DatabaseCleanupPreview"
+    '403':
+      description: Production environment or unauthorized admin

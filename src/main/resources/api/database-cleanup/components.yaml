@@ -1,0 +1,80 @@
+components:
+  schemas:
+    DatabaseCleanupRequest:
+      type: object
+      required: [keepTestForms, keepLockedForms, keepFormPaths]
+      properties:
+        keepTestForms:
+          type: boolean
+        keepLockedForms:
+          type: boolean
+        keepFormPaths:
+          type: array
+          items:
+            type: string
+    DatabaseCleanupStartRequest:
+      allOf:
+        - $ref: "#/components/schemas/DatabaseCleanupRequest"
+        - type: object
+          required: [expectedToDelete, expectedKept]
+          properties:
+            expectedToDelete:
+              type: array
+              description: Confirmed form paths to delete; duplicates are rejected
+              items:
+                type: string
+            expectedKept:
+              type: array
+              description: Confirmed form paths to retain; duplicates are rejected
+              items:
+                type: string
+    DatabaseCleanupPreview:
+      type: object
+      required: [toDelete, kept]
+      properties:
+        toDelete:
+          type: array
+          items:
+            type: string
+        kept:
+          type: array
+          items:
+            type: string
+    DatabaseCleanupStarted:
+      type: object
+      required: [jobId]
+      properties:
+        jobId:
+          $ref: "../common/components.yaml#/components/schemas/UUID"
+    DatabaseCleanupJob:
+      type: object
+      required: [jobId, status, totalCount, processedCount, deletedCount, keptCount, failedCount, items]
+      properties:
+        jobId:
+          $ref: "../common/components.yaml#/components/schemas/UUID"
+        status:
+          type: string
+          enum: [pending, running, completed, failed]
+        totalCount:
+          type: integer
+        processedCount:
+          type: integer
+        deletedCount:
+          type: integer
+        keptCount:
+          type: integer
+        failedCount:
+          type: integer
+        items:
+          type: array
+          items:
+            type: object
+            required: [path, outcome]
+            properties:
+              path:
+                type: string
+              outcome:
+                type: string
+                enum: [deleted, kept, failed]
+              error:
+                type: string

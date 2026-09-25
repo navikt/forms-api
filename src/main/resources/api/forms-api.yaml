@@ -26,8 +26,22 @@ tags:
     description: Publisering av skjemadefinisjoner
   - name: static-pdf
     description: Statiske PDFer for skjemaer
+  - name: database-cleanup
+    description: Admin-only preprod form data cleanup
 
 paths:
+  /api/database-cleanup/preview:
+    $ref: "./database-cleanup/preview.yaml"
+
+  /api/database-cleanup/jobs:
+    $ref: "./database-cleanup/jobs.yaml"
+
+  /api/database-cleanup/jobs/active:
+    $ref: "./database-cleanup/active-job.yaml"
+
+  /api/database-cleanup/jobs/{jobId}:
+    $ref: "./database-cleanup/job.yaml"
+
   /v1/recipients:
     $ref: "./recipients/recipients.yaml"
 

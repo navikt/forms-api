@@ -1,0 +1,21 @@
+get:
+  operationId: getActiveDatabaseCleanupJob
+  tags: [database-cleanup]
+  summary: Find the pending or running clear job
+  security:
+    - bearerAuth: []
+  responses:
+    '200':
+      description: Active job status and per-form outcomes
+      content:
+        application/json:
+          schema:
+            $ref: "./components.yaml#/components/schemas/DatabaseCleanupJob"
+    '403':
+      description: Production environment or unauthorized admin
+    '404':
+      description: No pending or running job
+      content:
+        application/json:
+          schema:
+            $ref: "../common/components.yaml#/components/schemas/ErrorResponseDto"

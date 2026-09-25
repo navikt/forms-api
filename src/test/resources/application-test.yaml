@@ -23,3 +23,7 @@ forms-api:
     groups:
       user-group-id: mock-user-group-id
       admin-group-id: mock-admin-group-id
+
+form-clear:
+  poll:
+    enabled: false

@@ -1,0 +1,27 @@
+post:
+  operationId: startDatabaseCleanup
+  tags: [database-cleanup]
+  summary: Start an audited, resumable preprod clear job
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: "./components.yaml#/components/schemas/DatabaseCleanupStartRequest"
+  responses:
+    '201':
+      description: Job created
+      content:
+        application/json:
+          schema:
+            $ref: "./components.yaml#/components/schemas/DatabaseCleanupStarted"
+    '403':
+      description: Production environment or unauthorized admin
+    '409':
+      description: Another job is active or the confirmed preview no longer matches
+      content:
+        application/json:
+          schema:
+            $ref: "../common/components.yaml#/components/schemas/ErrorResponseDto"
