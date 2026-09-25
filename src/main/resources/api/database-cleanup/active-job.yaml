@@ -1,6 +1,6 @@
 get:
-  operationId: getActiveFormClearJob
-  tags: [form-clear]
+  operationId: getActiveDatabaseCleanupJob
+  tags: [database-cleanup]
   summary: Find the pending or running clear job
   security:
     - bearerAuth: []
@@ -10,8 +10,12 @@ get:
       content:
         application/json:
           schema:
-            $ref: "./form-clear-components.yaml#/components/schemas/FormClearJob"
+            $ref: "./components.yaml#/components/schemas/DatabaseCleanupJob"
     '403':
       description: Production environment or unauthorized admin
     '404':
       description: No pending or running job
+      content:
+        application/json:
+          schema:
+            $ref: "../common/components.yaml#/components/schemas/ErrorResponseDto"

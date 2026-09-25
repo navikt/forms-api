@@ -28,11 +28,11 @@ class FormClearProdProfileControllerTest : ApplicationTest() {
     @Test
     fun `production profile rejects malformed unauthenticated request before parsing`() {
         val response = restTemplate.exchange<String>(
-            "http://localhost:$port/api/form-clear/preview", HttpMethod.POST, HttpEntity("{not-json")
+            "http://localhost:$port/api/database-cleanup/preview", HttpMethod.POST, HttpEntity("{not-json")
         )
         assertEquals(HttpStatus.FORBIDDEN, response.statusCode)
         assertEquals(HttpStatus.FORBIDDEN, restTemplate.exchange<String>(
-            "http://localhost:$port/api/form-clear/jobs/active", HttpMethod.GET, HttpEntity.EMPTY
+            "http://localhost:$port/api/database-cleanup/jobs/active", HttpMethod.GET, HttpEntity.EMPTY
         ).statusCode)
     }
 }

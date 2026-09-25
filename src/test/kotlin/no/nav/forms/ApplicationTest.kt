@@ -45,6 +45,7 @@ abstract class ApplicationTest(val setupPublishedGlobalTranslations: Boolean = f
 	final val baseUrl = "http://localhost:9082"
 
 	lateinit var testFormsApi: TestFormsApi
+	lateinit var testDatabaseCleanupApi: TestDatabaseCleanupApi
 
 	private var _publishedGlobalTranslations: Map<String, NewGlobalTranslationRequest> = emptyMap()
 
@@ -56,6 +57,7 @@ abstract class ApplicationTest(val setupPublishedGlobalTranslations: Boolean = f
 			storage.delete(it.blobId)
 		}
 		testFormsApi = TestFormsApi(baseUrl, restTemplate, objectMapper)
+		testDatabaseCleanupApi = TestDatabaseCleanupApi(baseUrl, restTemplate, objectMapper)
 
 		if (setupPublishedGlobalTranslations) {
 			val authToken = mockOAuth2Server.createMockToken()

@@ -1,6 +1,6 @@
 get:
-  operationId: getFormClearJob
-  tags: [form-clear]
+  operationId: getDatabaseCleanupJob
+  tags: [database-cleanup]
   summary: Get job progress and per-form outcomes
   security:
     - bearerAuth: []
@@ -9,16 +9,19 @@ get:
       name: jobId
       required: true
       schema:
-        type: string
-        format: uuid
+        $ref: "../common/components.yaml#/components/schemas/UUID"
   responses:
     '200':
       description: Job status
       content:
         application/json:
           schema:
-            $ref: "./form-clear-components.yaml#/components/schemas/FormClearJob"
+            $ref: "./components.yaml#/components/schemas/DatabaseCleanupJob"
     '403':
       description: Production environment or unauthorized admin
     '404':
       description: Unknown job
+      content:
+        application/json:
+          schema:
+            $ref: "../common/components.yaml#/components/schemas/ErrorResponseDto"

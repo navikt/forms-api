@@ -1,6 +1,6 @@
 components:
   schemas:
-    FormClearRequest:
+    DatabaseCleanupRequest:
       type: object
       required: [keepTestForms, keepLockedForms, keepFormPaths]
       properties:
@@ -12,23 +12,23 @@ components:
           type: array
           items:
             type: string
-    FormClearStartRequest:
+    DatabaseCleanupStartRequest:
       allOf:
-        - $ref: "#/components/schemas/FormClearRequest"
+        - $ref: "#/components/schemas/DatabaseCleanupRequest"
         - type: object
           required: [expectedToDelete, expectedKept]
           properties:
             expectedToDelete:
               type: array
-              uniqueItems: true
+              description: Confirmed form paths to delete; duplicates are rejected
               items:
                 type: string
             expectedKept:
               type: array
-              uniqueItems: true
+              description: Confirmed form paths to retain; duplicates are rejected
               items:
                 type: string
-    FormClearPreview:
+    DatabaseCleanupPreview:
       type: object
       required: [toDelete, kept]
       properties:
@@ -40,20 +40,18 @@ components:
           type: array
           items:
             type: string
-    FormClearStarted:
+    DatabaseCleanupStarted:
       type: object
       required: [jobId]
       properties:
         jobId:
-          type: string
-          format: uuid
-    FormClearJob:
+          $ref: "../common/components.yaml#/components/schemas/UUID"
+    DatabaseCleanupJob:
       type: object
       required: [jobId, status, totalCount, processedCount, deletedCount, keptCount, failedCount, items]
       properties:
         jobId:
-          type: string
-          format: uuid
+          $ref: "../common/components.yaml#/components/schemas/UUID"
         status:
           type: string
           enum: [pending, running, completed, failed]

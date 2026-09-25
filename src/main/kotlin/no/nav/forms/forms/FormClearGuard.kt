@@ -25,7 +25,7 @@ class FormClearGuardConfig {
     @Bean
     fun formClearGuard(environment: Environment): FilterRegistrationBean<FormClearGuard> =
         FilterRegistrationBean(FormClearGuard(environment)).apply {
-            addUrlPatterns("/api/form-clear/*")
+            addUrlPatterns("/api/database-cleanup/*")
             order = Ordered.HIGHEST_PRECEDENCE
         }
 }

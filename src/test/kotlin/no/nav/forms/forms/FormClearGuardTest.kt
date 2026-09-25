@@ -25,7 +25,7 @@ class FormClearGuardTest {
         val response = MockHttpServletResponse()
         var continued = false
         FormClearGuard(MockEnvironment().apply { setActiveProfiles("preprod") }).doFilter(
-            MockHttpServletRequest("POST", "/api/form-clear/jobs"), response,
+            MockHttpServletRequest("POST", "/api/database-cleanup/jobs"), response,
             FilterChain { _, _ -> continued = true }
         )
         assertTrue(continued)
@@ -35,7 +35,7 @@ class FormClearGuardTest {
         val response = MockHttpServletResponse()
         var continued = false
         FormClearGuard(environment).doFilter(
-            MockHttpServletRequest("POST", "/api/form-clear/jobs").apply {
+            MockHttpServletRequest("POST", "/api/database-cleanup/jobs").apply {
                 setContent("{malformed".toByteArray())
             }, response,
             FilterChain { _, _ -> continued = true }

@@ -1,6 +1,6 @@
 post:
-  operationId: startFormClear
-  tags: [form-clear]
+  operationId: startDatabaseCleanup
+  tags: [database-cleanup]
   summary: Start an audited, resumable preprod clear job
   security:
     - bearerAuth: []
@@ -9,15 +9,19 @@ post:
     content:
       application/json:
         schema:
-          $ref: "./form-clear-components.yaml#/components/schemas/FormClearStartRequest"
+          $ref: "./components.yaml#/components/schemas/DatabaseCleanupStartRequest"
   responses:
     '201':
       description: Job created
       content:
         application/json:
           schema:
-            $ref: "./form-clear-components.yaml#/components/schemas/FormClearStarted"
+            $ref: "./components.yaml#/components/schemas/DatabaseCleanupStarted"
     '403':
       description: Production environment or unauthorized admin
     '409':
       description: Another job is active or the confirmed preview no longer matches
+      content:
+        application/json:
+          schema:
+            $ref: "../common/components.yaml#/components/schemas/ErrorResponseDto"
