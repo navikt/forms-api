@@ -28,11 +28,13 @@ DO $confirmation$ BEGIN RAISE EXCEPTION 'Confirmation rejected; nothing deleted.
 \unset cleanup_confirmed
 
 -- 3. Start one bounded transaction and block writes in a fixed lock order.
+\echo 'Starting cleanup transaction and setting timeouts.'
 BEGIN ISOLATION LEVEL READ COMMITTED;
 SET LOCAL lock_timeout = '5s';
 SET LOCAL statement_timeout = '120s';
 SET LOCAL transaction_timeout = '180s';
 
+\echo 'Acquiring write-blocking locks.'
 LOCK TABLE public.form IN SHARE ROW EXCLUSIVE MODE;
 LOCK TABLE public.form_attribute IN SHARE ROW EXCLUSIVE MODE;
 LOCK TABLE public.form_revision IN SHARE ROW EXCLUSIVE MODE;
@@ -43,7 +45,9 @@ LOCK TABLE public.published_form_translation_revision IN SHARE ROW EXCLUSIVE MOD
 LOCK TABLE public.form_publication IN SHARE ROW EXCLUSIVE MODE;
 
 -- 4. Rebuild the plan under locks. Abort if anything changed after preview.
+\echo 'Refreshing temporary plan. DELETE/INSERT counts below are temporary rows, not application deletions.'
 \ir capture.sql
+\echo 'Checking refreshed plan against approved preview.'
 DO $compare$
 BEGIN
     IF EXISTS (
@@ -66,6 +70,7 @@ $compare$;
 
 -- 5. Save candidate attributes before removing revisions.
 -- All deletions use the same fixed set of form IDs.
+\echo 'Collecting form_attribute candidates. DELETE/INSERT counts below are temporary rows, not application deletions.'
 DELETE FROM pg_temp.cleanup_candidate_attributes;
 INSERT INTO pg_temp.cleanup_candidate_attributes (id)
 SELECT r.components_id FROM public.form_revision r
@@ -79,28 +84,35 @@ JOIN pg_temp.cleanup_current_forms f ON f.id = r.form_id WHERE NOT f.keep AND r.
 
 -- 6. Delete publication history, translation snapshots, translations, and revisions.
 -- Foreign keys determine the order. Global translations and recipients stay.
+\echo 'Deleting from public.form_publication.'
 DELETE FROM public.form_publication p
 USING pg_temp.cleanup_current_forms f WHERE p.form_id = f.id AND NOT f.keep;
 
+\echo 'Deleting from public.published_form_translation_revision.'
 DELETE FROM public.published_form_translation_revision r
 USING public.published_form_translation p, pg_temp.cleanup_current_forms f
 WHERE r.published_form_translation_id = p.id AND p.form_id = f.id AND NOT f.keep;
 
+\echo 'Deleting from public.published_form_translation.'
 DELETE FROM public.published_form_translation p
 USING pg_temp.cleanup_current_forms f WHERE p.form_id = f.id AND NOT f.keep;
 
+\echo 'Deleting from public.form_translation_revision.'
 DELETE FROM public.form_translation_revision r
 USING public.form_translation t, pg_temp.cleanup_current_forms f
 WHERE r.form_translation_id = t.id AND t.form_id = f.id AND NOT f.keep;
 
+\echo 'Deleting from public.form_translation.'
 DELETE FROM public.form_translation t
 USING pg_temp.cleanup_current_forms f WHERE t.form_id = f.id AND NOT f.keep;
 
+\echo 'Deleting from public.form_revision.'
 DELETE FROM public.form_revision r
 USING pg_temp.cleanup_current_forms f WHERE r.form_id = f.id AND NOT f.keep;
 
 -- 7. Delete only candidate attributes no longer used in any revision column.
 -- Build remaining references once rather than scanning revisions per candidate.
+\echo 'Deleting unreferenced candidates from public.form_attribute.'
 WITH referenced_attributes AS MATERIALIZED (
     SELECT components_id AS id FROM public.form_revision
     UNION
@@ -115,10 +127,13 @@ WHERE a.id = candidate.id AND NOT EXISTS (
 );
 
 -- 8. Delete the forms and commit everything together.
+\echo 'Deleting from public.form.'
 DELETE FROM public.form f
 USING pg_temp.cleanup_current_forms target WHERE f.id = target.id AND NOT target.keep;
 
 -- Approval is single use. A rollback restores it, but a new preview is recommended.
+\echo 'Invalidating preview approval (temporary rows only).'
 DELETE FROM pg_temp.cleanup_ready;
+\echo 'Committing cleanup transaction.'
 COMMIT;
 \echo 'Cleanup committed. Run preview.sql again before any further execution.'
