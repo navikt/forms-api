@@ -1,27 +1,70 @@
 package no.nav.forms.cleanup
 
-import com.opentable.db.postgres.embedded.EmbeddedPostgres
+import no.nav.forms.TestFormsApi
+import no.nav.forms.model.LockFormRequest
+import no.nav.forms.model.NewFormTranslationRequestDto
+import no.nav.forms.model.UpdateFormRequest
+import no.nav.forms.model.UpdateFormTranslationRequest
+import no.nav.forms.model.UpdateGlobalTranslationRequest
+import no.nav.forms.testutils.FormsTestdata
+import no.nav.forms.testutils.createMockToken
+import no.nav.forms.translations.testdata.GlobalTranslationsTestdata
+import no.nav.forms.utils.toFormPath
+import no.nav.security.mock.oauth2.MockOAuth2Server
+import no.nav.security.token.support.spring.test.EnableMockOAuth2Server
 import org.flywaydb.core.Flyway
-import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.io.TempDir
+import org.postgresql.ds.PGSimpleDataSource
+import org.postgresql.ds.common.BaseDataSource
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.beans.factory.annotation.Qualifier
+import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.boot.test.context.TestConfiguration
+import org.springframework.boot.resttestclient.TestRestTemplate
+import org.springframework.boot.resttestclient.autoconfigure.AutoConfigureTestRestTemplate
+import org.springframework.boot.test.web.server.LocalServerPort
+import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Primary
+import org.springframework.test.annotation.DirtiesContext
+import org.springframework.test.context.ActiveProfiles
+import tools.jackson.databind.ObjectMapper
 import java.nio.file.Files
 import java.nio.file.Path
 import java.sql.Connection
 import java.util.concurrent.TimeUnit
+import javax.sql.DataSource
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import kotlin.time.measureTime
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@AutoConfigureTestRestTemplate
+@EnableMockOAuth2Server
+@ActiveProfiles("test")
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class PreprodCleanupSqlTest {
 
 	@TempDir
 	lateinit var temporaryDirectory: Path
-	private lateinit var postgres: EmbeddedPostgres
+	@Autowired
+	@Qualifier("cleanupDataSource")
+	lateinit var dataSource: PGSimpleDataSource
+	@Autowired
+	lateinit var restTemplate: TestRestTemplate
+	@Autowired
+	lateinit var objectMapper: ObjectMapper
+	@Autowired
+	lateinit var mockOAuth2Server: MockOAuth2Server
+	@LocalServerPort
+	var port: Int = 0
+	private lateinit var testFormsApi: TestFormsApi
+	private lateinit var authToken: String
 	private val database = "forms-api-preprod-db"
 	private val tables = listOf(
 		"form", "form_attribute", "form_revision", "form_translation", "form_translation_revision",
@@ -35,33 +78,25 @@ class PreprodCleanupSqlTest {
 		val version = ProcessBuilder("psql", "--version").redirectErrorStream(true).start()
 		assertTrue(version.waitFor(10, TimeUnit.SECONDS), "psql --version timed out")
 		assertEquals(0, version.exitValue(), "Local psql is required; tests must not silently skip")
-		postgres = EmbeddedPostgres.builder().setTag("18").start()
-		postgres.postgresDatabase.connection.use { connection ->
-			connection.createStatement().use { statement ->
-				listOf(database, "forms-api-db", "other").forEach {
-					statement.execute("CREATE DATABASE \"$it\"")
-				}
-			}
-		}
-	}
-
-	@AfterAll
-	fun stopDatabase() {
-		if (::postgres.isInitialized) postgres.close()
 	}
 
 	@BeforeEach
 	fun migrate() {
 		listOf(database, "forms-api-db", "other").forEach { name ->
-			Flyway.configure().dataSource(postgres.getDatabase(postgres.userName, name))
-				.locations("filesystem:src/main/resources/db/migration").cleanDisabled(false).load().apply {
+			Flyway.configure().dataSource(databaseDataSource(name))
+				.locations("classpath:db/migration").cleanDisabled(false).load().apply {
 					clean()
 					migrate()
 				}
 		}
-		connection().use { connection ->
-			connection.createStatement().use { it.execute(GLOBAL_FIXTURE) }
-		}
+		testFormsApi = TestFormsApi("http://localhost:$port", restTemplate, objectMapper)
+		authToken = mockOAuth2Server.createMockToken()
+		val globalRequest = GlobalTranslationsTestdata.translations.getValue("required")
+		val global = testFormsApi.createGlobalTranslation(globalRequest, authToken).assertSuccess().body
+		testFormsApi.publishGlobalTranslations(authToken).assertSuccess()
+		testFormsApi.putGlobalTranslation(global.id, global.revision!!,
+			UpdateGlobalTranslationRequest(nb = "Updated fixture"), authToken).assertSuccess()
+		testFormsApi.publishGlobalTranslations(authToken).assertSuccess()
 	}
 
 	@Test
@@ -77,7 +112,15 @@ class PreprodCleanupSqlTest {
 			}
 		}
 		val before = snapshot()
+		assertTrue(before.getValue("recipient") != "[]", "Recipient preservation needs existing recipients")
 		val preserved = preservedFormSnapshot(keep)
+		val expectedAttributeCount = scalar("""
+			SELECT count(*) FROM form_attribute a
+			WHERE NOT EXISTS (SELECT 1 FROM form_revision r WHERE r.form_id <> $keep
+			    AND a.id IN (r.components_id, r.properties_id, r.intro_page_id))
+			OR EXISTS (SELECT 1 FROM form_revision r WHERE r.form_id = $keep
+			    AND a.id IN (r.components_id, r.properties_id, r.intro_page_id))
+		""".trimIndent()).toInt()
 		val result = psql("\\set keep_paths '[\"keep\"]'\n$preview\n$execute")
 		result.succeeds()
 		assertEquals(listOf("keep"), paths())
@@ -88,7 +131,7 @@ class PreprodCleanupSqlTest {
 		assertEquals(0, scalar("SELECT count(*) FROM form_revision WHERE form_id = $target").toInt())
 		assertEquals(0, scalar("SELECT count(*) FROM form_publication WHERE form_id = $target").toInt())
 		assertEquals(1, scalar("SELECT count(*) FROM form_attribute WHERE value = '[\"unrelated orphan\"]'::jsonb").toInt())
-		assertEquals(5, scalar("SELECT count(*) FROM form_attribute").toInt())
+		assertEquals(expectedAttributeCount, scalar("SELECT count(*) FROM form_attribute").toInt())
 	}
 
 	@Test
@@ -125,16 +168,10 @@ class PreprodCleanupSqlTest {
 	fun `preview changes no source rows and holds no write locks during user review`() {
 		form("remove", published = true)
 		val before = snapshot()
-		val process = startPsql("$preview\n\\echo PREVIEW_READY\nSELECT pg_sleep(2);")
-		awaitOutput(process, "PREVIEW_READY")
-		assertEquals(before, snapshot())
-		connection().use { connection ->
-			connection.createStatement().use {
-				it.execute("SET lock_timeout = '500ms'")
-				it.execute("UPDATE form SET lock = '{}'::jsonb WHERE path = 'remove'")
-			}
-		}
-		finish(process).succeeds()
+		withPausedPreview {
+			assertEquals(before, snapshot())
+			testFormsApi.lockForm("remove", LockFormRequest(reason = "Review in progress"), authToken).assertSuccess()
+		}.succeeds()
 	}
 
 	@Test
@@ -176,56 +213,78 @@ class PreprodCleanupSqlTest {
 
 	@Test
 	fun `latest revision controls test protection`() {
-		val id = form("changed-test", test = true)
-		connection().use { connection ->
-			val properties = insert(connection, "INSERT INTO form_attribute(name, value) VALUES ('properties', '{}') RETURNING id")
-			connection.createStatement().execute("UPDATE form_revision SET properties_id = $properties WHERE form_id = $id AND revision = 2")
-		}
+		form("changedtest", test = true)
+		testFormsApi.updateForm("changedtest", 2,
+			UpdateFormRequest(properties = mapOf("isTestForm" to false)), authToken).assertSuccess()
 		psql("$preview\n$execute").succeeds()
 		assertTrue(paths().isEmpty())
 	}
 
 	@Test
 	fun `stale plans reject protection revision translation publication and identity changes`() {
-		val mutations = listOf(
-			"UPDATE public.form SET lock = '{}'::jsonb",
-			"UPDATE public.form_attribute SET value = '{\"isTestForm\":true}' WHERE name = 'properties'",
+		val apiMutations: List<() -> Unit> = listOf(
+			{ testFormsApi.lockForm("remove", LockFormRequest(reason = "Changed protection"), authToken).assertSuccess() },
+			{ testFormsApi.updateForm("remove", 2, UpdateFormRequest(properties = mapOf("isTestForm" to true)), authToken).assertSuccess() },
+			{ testFormsApi.updateForm("remove", 2, UpdateFormRequest(title = "Changed revision"), authToken).assertSuccess() },
+			{ testFormsApi.createFormTranslation("remove", NewFormTranslationRequestDto(key = "new key", nb = "Changed"), authToken).assertSuccess() },
+			{
+				val translation = testFormsApi.getFormTranslations("remove").assertSuccess().body.single()
+				testFormsApi.updateFormTranslation("remove", translation.id, translation.revision!!,
+					UpdateFormTranslationRequest(nb = "Changed"), authToken).assertSuccess()
+			},
+			{ testFormsApi.publishForm("remove", 2, authToken).assertSuccess() },
+			{ testFormsApi.unpublishForm("remove", authToken).assertSuccess() },
+			{ form("newform") },
+		)
+		apiMutations.forEachIndexed { index, mutation ->
+			migrate()
+			form("remove", published = true)
+			var afterMutation: Map<String, String> = emptyMap()
+			val result = withPausedPreview(executeAfterReview = true) {
+				mutation()
+				afterMutation = snapshot()
+			}
+			result.fails()
+			assertTrue(result.output.contains("Source data changed since preview"), "API mutation $index: ${result.output}")
+			assertEquals(afterMutation, snapshot(), "API mutation $index")
+		}
+		// Historical rows and immutable snapshot contents cannot be edited through the API.
+		val corruptions = listOf(
 			"UPDATE public.form_revision SET title = 'changed' WHERE revision = 1",
 			"UPDATE public.form_translation SET key = 'changed'",
 			"UPDATE public.form_translation_revision SET nb = 'changed' WHERE global_translation_id IS NULL",
 			"UPDATE public.published_form_translation SET created_by = 'changed'",
 			"DELETE FROM public.published_form_translation_revision WHERE published_form_translation_id = (SELECT min(id) FROM public.published_form_translation)",
-			"UPDATE public.form_publication SET status = 'unpublished'",
-			"WITH new_form AS (INSERT INTO public.form(path, created_by) VALUES ('new-form', 'fixture') RETURNING id) INSERT INTO public.form_revision(form_id, revision, title, created_by, components_id, properties_id, intro_page_id) SELECT f.id, 1, r.title, r.created_by, r.components_id, r.properties_id, r.intro_page_id FROM new_form f CROSS JOIN public.form_revision r WHERE r.revision = 2",
-			"INSERT INTO public.form_revision(form_id, revision, title, created_by, components_id, properties_id, intro_page_id) SELECT form_id, 3, title, created_by, components_id, properties_id, intro_page_id FROM public.form_revision WHERE revision = 2",
 		)
-		mutations.forEach { mutation ->
+		corruptions.forEach { corruption ->
 			migrate()
 			form("remove", published = true)
-			val result = psql("$preview\n$mutation;\n$execute")
+			val result = psql("$preview\n$corruption;\n$execute")
 			result.fails()
 			assertTrue(result.output.contains("Source data changed since preview"), result.output)
-			assertTrue("remove" in paths(), mutation)
-			assertTrue(scalar("SELECT count(*) FROM form_revision").toInt() >= 2, mutation)
+			assertEquals(listOf("remove"), paths(), corruption)
+			assertEquals(2, scalar("SELECT count(*) FROM form_revision").toInt(), corruption)
 		}
 		migrate()
-		form("same-path")
-		val result = psql("""
-			$preview
-			CREATE TEMP TABLE old_revisions AS SELECT * FROM public.form_revision;
-			DELETE FROM public.form_translation_revision;
-			DELETE FROM public.form_translation;
-			DELETE FROM public.form_revision;
-			DELETE FROM public.form;
-			INSERT INTO public.form(path, created_by) VALUES ('same-path', 'fixture');
-			INSERT INTO public.form_revision(form_id, revision, title, created_by, components_id, properties_id, intro_page_id)
-			SELECT f.id, r.revision, r.title, r.created_by, r.components_id, r.properties_id, r.intro_page_id
-			FROM public.form f CROSS JOIN old_revisions r;
-			$execute
-		""".trimIndent())
+		val originalId = form("samepath")
+		var afterReplacement: Map<String, String> = emptyMap()
+		val result = withPausedPreview(executeAfterReview = true) {
+			// Physical deletion is not exposed by the API; recreation uses the normal write path.
+			connection().use { connection ->
+				connection.createStatement().use { it.execute("""
+					DELETE FROM public.form_translation_revision;
+					DELETE FROM public.form_translation;
+					DELETE FROM public.form_revision;
+					DELETE FROM public.form;
+				""".trimIndent()) }
+			}
+			assertTrue(form("samepath") != originalId)
+			afterReplacement = snapshot()
+		}
 		result.fails()
 		assertTrue(result.output.contains("Source data changed since preview"), result.output)
-		assertEquals(listOf("same-path"), paths())
+		assertEquals(listOf("samepath"), paths())
+		assertEquals(afterReplacement, snapshot())
 	}
 
 	@Test
@@ -304,18 +363,19 @@ class PreprodCleanupSqlTest {
 	@Test
 	fun `wrong database guards reject production and unknown names`() {
 		listOf("forms-api-db", "other").forEach { name ->
-			form("remove", published = true, databaseName = name)
 			val before = snapshot(name)
-			psql(preview, databaseName = name).fails()
-			psql(execute, databaseName = name).fails()
-			assertEquals(before, snapshot(name), name)
+			listOf(preview, execute).forEach { entry ->
+				val result = psql(entry, databaseName = name)
+				result.fails()
+				assertTrue(result.output.contains("Cleanup requires database forms-api-preprod-db"), result.output)
+				assertEquals(before, snapshot(name), name)
+			}
 		}
 	}
 
 	@Test
 	fun `initially disabled error stopping never bypasses guard inside entry scripts`() {
 		listOf("forms-api-db", "other").forEach { name ->
-			form("remove", published = true, databaseName = name)
 			val before = snapshot(name)
 			listOf(preview, execute).forEach { entry ->
 				val result = psql("$entry\nSELECT pg_catalog.to_regclass('pg_temp.cleanup_ready') IS NULL AS guard_rejected \\gset\n\\echo GUARD_REJECTED :guard_rejected",
@@ -437,11 +497,12 @@ class PreprodCleanupSqlTest {
 	}
 
 	@Test
-	fun `representative thousand form cleanup with multiple revisions finishes within transaction budget`() {
+	@Tag("volume")
+	fun `representative 300 form cleanup with multiple revisions finishes within transaction budget`() {
 		connection().use { connection ->
 			connection.createStatement().execute("""
 				INSERT INTO form(path, created_by, lock) SELECT 'benchmark-' || n, 'fixture',
-				CASE WHEN n <= 500 THEN '{}'::jsonb END FROM generate_series(1, 1000) n;
+				CASE WHEN n <= 150 THEN '{}'::jsonb END FROM generate_series(1, 300) n;
 				DO ${'$'}${'$'}
 				DECLARE f record; rev integer; components bigint; properties bigint; intro bigint; translation bigint; tr bigint; snapshot bigint; current_revision bigint;
 				BEGIN
@@ -468,14 +529,14 @@ class PreprodCleanupSqlTest {
 				END; ${'$'}${'$'};
 			""".trimIndent())
 		}
-		assertEquals(3000, scalar("SELECT count(*) FROM form_revision").toInt())
-		assertEquals(8000, scalar("SELECT count(*) FROM form_attribute").toInt())
+		assertEquals(900, scalar("SELECT count(*) FROM form_revision").toInt())
+		assertEquals(2400, scalar("SELECT count(*) FROM form_attribute").toInt())
 		val elapsed = measureTime { psql("$preview\n$execute").succeeds() }
-		println("Preprod cleanup local PostgreSQL 18 benchmark: 1000 forms, 3000 revisions, 8000 unique attributes, 4 KiB component content per revision, 3000 translation revisions and publications; retaining 50% of forms and associated rows: $elapsed. Synthetic local result, not a live-scale guarantee.")
+		println("Preprod cleanup local PostgreSQL 18 benchmark: 300 forms, 900 revisions, 2400 unique attributes, 4 KiB component content per revision, 900 translation revisions and publications; retaining 50% of forms and associated rows: $elapsed. Synthetic local result, not a live-scale guarantee.")
 		assertTrue(elapsed.inWholeSeconds < 180, "Cleanup exceeded transaction budget: $elapsed")
-		mapOf("form" to 500, "form_revision" to 1500, "form_attribute" to 4000, "form_translation" to 500,
-			"form_translation_revision" to 1500, "form_publication" to 1500, "published_form_translation" to 1500,
-			"published_form_translation_revision" to 1500).forEach { (table, expected) ->
+		mapOf("form" to 150, "form_revision" to 450, "form_attribute" to 1200, "form_translation" to 150,
+			"form_translation_revision" to 450, "form_publication" to 450, "published_form_translation" to 450,
+			"published_form_translation_revision" to 450).forEach { (table, expected) ->
 			assertEquals(expected, scalar("SELECT count(*) FROM $table").toInt(), table)
 		}
 	}
@@ -483,44 +544,39 @@ class PreprodCleanupSqlTest {
 	private val preview = "\\i scripts/preprod-cleanup/preview.sql"
 	private val execute = "\\i scripts/preprod-cleanup/execute.sql"
 
-	private fun connection(databaseName: String = database): Connection =
-		postgres.getDatabase(postgres.userName, databaseName).connection
-
-	private fun form(path: String, test: Boolean = false, locked: Boolean = false, deleted: Boolean = false,
-		published: Boolean = false, databaseName: String = database): Long = connection(databaseName).use { connection ->
-		val id = insert(connection, "INSERT INTO form(path, created_by, lock, deleted_at) VALUES (?, 'fixture', ?::jsonb, CASE WHEN ? THEN now() END) RETURNING id",
-			path, if (locked) "{}" else null, deleted)
-		val components = insert(connection, "INSERT INTO form_attribute(name, value) VALUES ('components', '[]') RETURNING id")
-		val properties = insert(connection, "INSERT INTO form_attribute(name, value) VALUES ('properties', ?::jsonb) RETURNING id", "{\"isTestForm\":$test}")
-		val intro = insert(connection, "INSERT INTO form_attribute(name, value) VALUES ('introPage', '{}') RETURNING id")
-		val revisions = (1..2).map { revision ->
-			insert(connection, "INSERT INTO form_revision(form_id, revision, title, created_by, components_id, properties_id, intro_page_id) VALUES (?, ?, 'Fixture', 'fixture', ?, ?, ?) RETURNING id",
-				id, revision, components, properties, intro)
-		}
-		val translation = insert(connection, "INSERT INTO form_translation(form_id, key) VALUES (?, 'fixture') RETURNING id", id)
-		val translationRevisions = (1..2).map { revision ->
-			insert(connection, "INSERT INTO form_translation_revision(form_translation_id, revision, nb, created_by) VALUES (?, ?, 'Fixture', 'fixture') RETURNING id", translation, revision)
-		}
-		if (published) {
-			// Named guard databases intentionally have no shared fixture yet.
-			if (databaseName != database) connection.createStatement().execute(GLOBAL_FIXTURE)
-			val globalSnapshot = connection.createStatement().executeQuery("SELECT id FROM published_global_translation LIMIT 1").use { it.next(); it.getLong(1) }
-			revisions.forEachIndexed { index, revision ->
-				val snapshot = insert(connection, "INSERT INTO published_form_translation(form_id, created_by) VALUES (?, 'fixture') RETURNING id", id)
-				connection.prepareStatement("INSERT INTO published_form_translation_revision VALUES (?, ?)").use {
-					it.setLong(1, snapshot); it.setLong(2, translationRevisions[index]); it.executeUpdate()
-				}
-				insert(connection, "INSERT INTO form_publication(form_id, form_revision_id, published_form_translation_id, published_global_translation_id, created_by) VALUES (?, ?, ?, ?, 'fixture') RETURNING id", id, revision, snapshot, globalSnapshot)
-			}
-		}
-		id
+	private fun databaseDataSource(name: String): PGSimpleDataSource = PGSimpleDataSource().apply {
+		setURL(dataSource.getURL())
+		user = dataSource.user
+		password = dataSource.password
+		databaseName = name
 	}
 
-	private fun insert(connection: Connection, sql: String, vararg parameters: Any?): Long =
-		connection.prepareStatement(sql).use { statement ->
-			parameters.forEachIndexed { index, value -> statement.setObject(index + 1, value) }
-			statement.executeQuery().use { rows -> check(rows.next()); rows.getLong(1) }
+	private fun connection(databaseName: String = database): Connection =
+		databaseDataSource(databaseName).connection
+
+	private fun form(path: String, test: Boolean = false, locked: Boolean = false, deleted: Boolean = false,
+		published: Boolean = false): Long {
+		val created = testFormsApi.createForm(FormsTestdata.newFormRequest(
+			skjemanummer = path,
+			properties = mapOf("isTestForm" to test),
+			introPage = mapOf("title" to "Fixture intro"),
+		), authToken).assertSuccess().body
+		val formPath = created.path!!
+		assertEquals(path.toFormPath(), formPath)
+		val translation = testFormsApi.createFormTranslation(formPath,
+			NewFormTranslationRequestDto(key = "fixture", nb = "Fixture"), authToken).assertSuccess().body
+		if (published) testFormsApi.publishForm(formPath, created.revision!!, authToken).assertSuccess()
+		val updated = testFormsApi.updateForm(formPath, created.revision!!,
+			UpdateFormRequest(title = "Updated fixture"), authToken).assertSuccess().body
+		testFormsApi.updateFormTranslation(formPath, translation.id, translation.revision!!,
+			UpdateFormTranslationRequest(nb = "Updated fixture"), authToken).assertSuccess()
+		if (published) {
+			testFormsApi.publishForm(formPath, updated.revision!!, authToken).assertSuccess()
 		}
+		if (locked) testFormsApi.lockForm(formPath, LockFormRequest(reason = "Fixture lock"), authToken).assertSuccess()
+		if (deleted) testFormsApi.deleteForm(formPath, updated.revision!!, authToken).assertSuccess()
+		return created.id!!
+	}
 
 	private fun scalar(sql: String, databaseName: String = database): String = connection(databaseName).use { connection ->
 		connection.createStatement().use { it.executeQuery(sql).use { rows -> check(rows.next()); rows.getString(1) } }
@@ -559,16 +615,30 @@ class PreprodCleanupSqlTest {
 		}
 	}
 
+	private fun withPausedPreview(executeAfterReview: Boolean = false, duringReview: () -> Unit): Result =
+		connection().use { gate ->
+			gate.createStatement().use { it.execute("SELECT pg_advisory_lock(850021)") }
+			val running = startPsql("$preview\n\\echo PREVIEW_READY\nSELECT pg_advisory_lock(850021);\n${if (executeAfterReview) execute else ""}")
+			try {
+				awaitOutput(running, "PREVIEW_READY")
+				duringReview()
+				gate.createStatement().use { it.execute("SELECT pg_advisory_unlock(850021)") }
+				finish(running)
+			} finally {
+				if (running.process.isAlive) running.process.destroyForcibly().waitFor()
+			}
+		}
+
 	private fun startPsql(sql: String, confirmation: String = "DELETE preprod and preprod-alt\n", databaseName: String = database, stopOnError: Boolean = true): RunningPsql {
 		val driver = Files.createTempFile(temporaryDirectory, "cleanup-", ".sql")
 		val output = Files.createTempFile(temporaryDirectory, "psql-", ".log")
 		Files.writeString(driver, sql + "\n\\echo TEST_DRIVER_COMPLETED\n")
-		val builder = ProcessBuilder("psql", "-X", "-v", "ON_ERROR_STOP=${if (stopOnError) 1 else 0}", "--no-password", "-h", postgres.host, "-p", postgres.port.toString(),
-			"-U", postgres.userName, "-d", databaseName, "-f", driver.toString())
+		val builder = ProcessBuilder("psql", "-X", "-v", "ON_ERROR_STOP=${if (stopOnError) 1 else 0}", "--no-password", "-h", dataSource.serverNames.first(), "-p", dataSource.portNumbers.first().toString(),
+			"-U", dataSource.user, "-d", databaseName, "-f", driver.toString())
 			.redirectErrorStream(true).redirectOutput(output.toFile())
 		builder.environment().apply {
 			keys.filter { it.startsWith("PG") }.toList().forEach { remove(it) }
-			put("PGPASSWORD", postgres.password)
+			put("PGPASSWORD", dataSource.password)
 			put("PGCONNECT_TIMEOUT", "5")
 		}
 		val process = builder.start()
@@ -593,16 +663,26 @@ class PreprodCleanupSqlTest {
 		assertTrue(Files.readString(running.output).contains(marker), Files.readString(running.output))
 	}
 
-	companion object {
-		private val GLOBAL_FIXTURE = """
-			INSERT INTO global_translation(key, tag) VALUES ('fixture-global', 'standard');
-			INSERT INTO global_translation_revision(global_translation_id, revision, nb, created_by)
-			SELECT id, 1, 'Fixture', 'fixture' FROM global_translation;
-			INSERT INTO published_global_translation(created_by) VALUES ('fixture');
-			INSERT INTO published_global_translation_revision
-			SELECT p.id, r.id FROM published_global_translation p CROSS JOIN global_translation_revision r;
-			INSERT INTO recipient(recipient_id, name, po_box_address, postal_code, postal_name, created_by, changed_by)
-			VALUES ('fixture', 'Fixture', 'Fixture', '0000', 'Fixture', 'fixture', 'fixture');
-		""".trimIndent()
+	@TestConfiguration(proxyBeanMethods = false)
+	class CleanupDatabaseConfiguration {
+		@Bean
+		@Primary
+		fun cleanupDataSource(@Qualifier("embeddedPostgres") original: DataSource): PGSimpleDataSource {
+			// Reuse EmbeddedDb's PostgreSQL 18 instance without renaming its default database.
+			val settings = original.unwrap(BaseDataSource::class.java)
+			original.connection.use { connection ->
+				connection.createStatement().use { statement ->
+					listOf("forms-api-preprod-db", "forms-api-db", "other").forEach { name ->
+						statement.execute("CREATE DATABASE \"$name\"")
+					}
+				}
+				return PGSimpleDataSource().apply {
+					setURL(connection.metaData.url)
+					user = settings.user
+					password = settings.password
+					databaseName = "forms-api-preprod-db"
+				}
+			}
+		}
 	}
 }

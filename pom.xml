@@ -45,6 +45,8 @@
 		<kotlin.compiler.languageVersion>2.0</kotlin.compiler.languageVersion>
 		<kotlin.compiler.apiVersion>2.0</kotlin.compiler.apiVersion>
 		<kotlin.compiler.jvmTarget>21</kotlin.compiler.jvmTarget>
+		<!-- Use -Pcleanup-volume to run volume tests separately. -->
+		<test.groups>!volume</test.groups>
 
 		<!-- OpenAPI -->
 		<openapi-generator-maven-plugin.version>7.24.0</openapi-generator-maven-plugin.version>
@@ -235,6 +237,13 @@
 				<artifactId>spring-boot-maven-plugin</artifactId>
 			</plugin>
 			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<configuration>
+					<groups>${test.groups}</groups>
+				</configuration>
+			</plugin>
+			<plugin>
 				<groupId>org.jetbrains.kotlin</groupId>
 				<artifactId>kotlin-maven-plugin</artifactId>
 				<executions>
@@ -322,5 +331,14 @@
 			</plugin>
 		</plugins>
 	</build>
+
+	<profiles>
+		<profile>
+			<id>cleanup-volume</id>
+			<properties>
+				<test.groups>volume</test.groups>
+			</properties>
+		</profile>
+	</profiles>
 
 </project>

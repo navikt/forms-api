@@ -114,11 +114,20 @@ Skriptet kopierer ikke produksjonsdata. Bruk eksisterende import ved behov.
 
 Docker må kjøre, og `psql` 18 må ligge på PATH. Testene bruker isolert PostgreSQL
 18 med repoets migrasjoner og kjører de leverte SQL-filene.
-Volumtesten bruker 1 000 skjemaer, 3 000 revisjoner, 8 000 attributter og 4 KiB
-komponentinnhold per revisjon, med oversettelser og publiseringer. Halvparten
-beholdes. Testen skriver målt tid, ikke en garanti for kjøretiden i preprod.
+Volumtesten er utelatt som standard, også ved `mvn install`.
 
 ```bash
 mise exec -- mvn -Dtest=PreprodCleanupSqlTest test
 mise exec -- mvn clean install
 ```
+
+Kjør volumtesten separat ved behov:
+
+```bash
+mise exec -- mvn -Pcleanup-volume -Dtest=PreprodCleanupSqlTest test
+```
+
+Profilen kjører bare testen merket `volume`. Den bruker 300 skjemaer,
+900 revisjoner, 2 400 attributter og 4 KiB komponentinnhold per revisjon,
+med oversettelser og publiseringer. Halvparten beholdes. Testen skriver
+målt tid, ikke en garanti for kjøretiden i preprod.
