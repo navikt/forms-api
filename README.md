@@ -76,6 +76,11 @@ migreringsskriptene underveis. I slike tilfeller er det enklest å slette docker
     docker rm forms-api forms-api-db
     docker volume rm forms-api_db
 
+## Manuell opprydding i preprod
+
+Se [kjørebeskrivelsen for preprod-opprydding](docs/preprod-cleanup.md).
+Skriptet sletter skjemaer fysisk og påvirker både preprod og preprod-alt.
+
 # Autentisering
 
 Endepunkter som henter data er i utgangspunktet åpne, men de som endrer på data er sikret
