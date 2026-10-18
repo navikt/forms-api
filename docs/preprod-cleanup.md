@@ -112,8 +112,9 @@ Skriptet kopierer ikke produksjonsdata. Bruk eksisterende import ved behov.
 
 ## Kjør testene lokalt
 
-Docker må kjøre, og `psql` 18 må ligge på PATH. Testene bruker isolert PostgreSQL
-18 med repoets migrasjoner og kjører de leverte SQL-filene.
+Docker må kjøre. Testene bruker `ApplicationTest` og PostgreSQL 18 i en isolert
+container med repoets migrasjoner. SQL-filene kjøres med containerens `psql`.
+Du trenger ikke installere `psql` lokalt for å kjøre testene.
 Volumtesten er utelatt som standard, også ved `mvn install`.
 
 ```bash

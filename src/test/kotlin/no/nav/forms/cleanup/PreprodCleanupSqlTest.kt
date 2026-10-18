@@ -1,6 +1,6 @@
 package no.nav.forms.cleanup
 
-import no.nav.forms.TestFormsApi
+import no.nav.forms.ApplicationTest
 import no.nav.forms.model.LockFormRequest
 import no.nav.forms.model.NewFormTranslationRequestDto
 import no.nav.forms.model.UpdateFormRequest
@@ -10,60 +10,30 @@ import no.nav.forms.testutils.FormsTestdata
 import no.nav.forms.testutils.createMockToken
 import no.nav.forms.translations.testdata.GlobalTranslationsTestdata
 import no.nav.forms.utils.toFormPath
-import no.nav.security.mock.oauth2.MockOAuth2Server
-import no.nav.security.token.support.spring.test.EnableMockOAuth2Server
 import org.flywaydb.core.Flyway
+import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.TestInstance
-import org.junit.jupiter.api.io.TempDir
 import org.postgresql.ds.PGSimpleDataSource
-import org.postgresql.ds.common.BaseDataSource
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.beans.factory.annotation.Qualifier
-import org.springframework.boot.test.context.SpringBootTest
-import org.springframework.boot.test.context.TestConfiguration
-import org.springframework.boot.resttestclient.TestRestTemplate
-import org.springframework.boot.resttestclient.autoconfigure.AutoConfigureTestRestTemplate
-import org.springframework.boot.test.web.server.LocalServerPort
-import org.springframework.context.annotation.Bean
-import org.springframework.context.annotation.Primary
-import org.springframework.test.annotation.DirtiesContext
-import org.springframework.test.context.ActiveProfiles
-import tools.jackson.databind.ObjectMapper
-import java.nio.file.Files
-import java.nio.file.Path
+import org.testcontainers.postgresql.PostgreSQLContainer
 import java.sql.Connection
 import java.util.concurrent.TimeUnit
-import javax.sql.DataSource
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import kotlin.time.measureTime
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@AutoConfigureTestRestTemplate
-@EnableMockOAuth2Server
-@ActiveProfiles("test")
-@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
-class PreprodCleanupSqlTest {
+class PreprodCleanupSqlTest : ApplicationTest() {
 
-	@TempDir
-	lateinit var temporaryDirectory: Path
 	@Autowired
-	@Qualifier("cleanupDataSource")
 	lateinit var dataSource: PGSimpleDataSource
 	@Autowired
-	lateinit var restTemplate: TestRestTemplate
-	@Autowired
-	lateinit var objectMapper: ObjectMapper
-	@Autowired
-	lateinit var mockOAuth2Server: MockOAuth2Server
-	@LocalServerPort
-	var port: Int = 0
-	private lateinit var testFormsApi: TestFormsApi
+	lateinit var postgres: PostgreSQLContainer
+	private lateinit var sqlRunner: ContainerPsql
 	private lateinit var authToken: String
 	private val database = "forms-api-preprod-db"
 	private val tables = listOf(
@@ -74,22 +44,32 @@ class PreprodCleanupSqlTest {
 	)
 
 	@BeforeAll
-	fun startDatabase() {
-		val version = ProcessBuilder("psql", "--version").redirectErrorStream(true).start()
-		assertTrue(version.waitFor(10, TimeUnit.SECONDS), "psql --version timed out")
-		assertEquals(0, version.exitValue(), "Local psql is required; tests must not silently skip")
+	fun startSqlRunner() {
+		sqlRunner = ContainerPsql(postgres)
+		connection().use { connection ->
+			connection.createStatement().use { statement ->
+				listOf("forms-api-db", "other").forEach { name ->
+					statement.execute("DROP DATABASE IF EXISTS \"$name\"")
+					statement.execute("CREATE DATABASE \"$name\"")
+				}
+			}
+		}
+	}
+
+	@AfterAll
+	fun closeSqlRunner() {
+		if (::sqlRunner.isInitialized) sqlRunner.close()
 	}
 
 	@BeforeEach
-	fun migrate() {
-		listOf(database, "forms-api-db", "other").forEach { name ->
+	fun prepareCleanupFixtures() {
+		listOf("forms-api-db", "other").forEach { name ->
 			Flyway.configure().dataSource(databaseDataSource(name))
 				.locations("classpath:db/migration").cleanDisabled(false).load().apply {
 					clean()
 					migrate()
 				}
 		}
-		testFormsApi = TestFormsApi("http://localhost:$port", restTemplate, objectMapper)
 		authToken = mockOAuth2Server.createMockToken()
 		val globalRequest = GlobalTranslationsTestdata.translations.getValue("required")
 		val global = testFormsApi.createGlobalTranslation(globalRequest, authToken).assertSuccess().body
@@ -97,6 +77,11 @@ class PreprodCleanupSqlTest {
 		testFormsApi.putGlobalTranslation(global.id, global.revision!!,
 			UpdateGlobalTranslationRequest(nb = "Updated fixture"), authToken).assertSuccess()
 		testFormsApi.publishGlobalTranslations(authToken).assertSuccess()
+	}
+
+	private fun resetFixtures() {
+		super.setup()
+		prepareCleanupFixtures()
 	}
 
 	@Test
@@ -237,7 +222,7 @@ class PreprodCleanupSqlTest {
 			{ form("newform") },
 		)
 		apiMutations.forEachIndexed { index, mutation ->
-			migrate()
+			resetFixtures()
 			form("remove", published = true)
 			var afterMutation: Map<String, String> = emptyMap()
 			val result = withPausedPreview(executeAfterReview = true) {
@@ -257,7 +242,7 @@ class PreprodCleanupSqlTest {
 			"DELETE FROM public.published_form_translation_revision WHERE published_form_translation_id = (SELECT min(id) FROM public.published_form_translation)",
 		)
 		corruptions.forEach { corruption ->
-			migrate()
+			resetFixtures()
 			form("remove", published = true)
 			val result = psql("$preview\n$corruption;\n$execute")
 			result.fails()
@@ -265,7 +250,7 @@ class PreprodCleanupSqlTest {
 			assertEquals(listOf("remove"), paths(), corruption)
 			assertEquals(2, scalar("SELECT count(*) FROM form_revision").toInt(), corruption)
 		}
-		migrate()
+		resetFixtures()
 		val originalId = form("samepath")
 		var afterReplacement: Map<String, String> = emptyMap()
 		val result = withPausedPreview(executeAfterReview = true) {
@@ -491,9 +476,37 @@ class PreprodCleanupSqlTest {
 				assertTrue(competing.output.contains("Source data changed since preview"), competing.output)
 				assertTrue(paths().isEmpty())
 			} finally {
-				listOf(first, second).forEach { if (it.process.isAlive) it.process.destroyForcibly().waitFor() }
+				listOf(first, second).forEach { it.close() }
 			}
 		}
+	}
+
+	@Test
+	fun `closing a running container session rolls back and releases its locks`() {
+		form("remove", published = true)
+		val before = snapshot()
+		val running = startPsql("""
+			BEGIN;
+			UPDATE public.form SET lock = '{}'::jsonb WHERE path = 'remove';
+			\echo SESSION_OPEN
+			SELECT pg_sleep(60);
+			COMMIT;
+		""".trimIndent())
+		try {
+			awaitOutput(running, "SESSION_OPEN")
+		} finally {
+			running.close()
+		}
+		connection().use { writer ->
+			writer.autoCommit = false
+			writer.createStatement().use {
+				it.execute("SET LOCAL lock_timeout = '500ms'")
+				it.execute("UPDATE public.form SET lock = '{}'::jsonb WHERE path = 'remove'")
+			}
+			writer.rollback()
+		}
+		assertEquals(before, snapshot())
+		psql(preview).succeeds()
 	}
 
 	@Test
@@ -603,19 +616,17 @@ class PreprodCleanupSqlTest {
 		"published_form_translation_revision" to "published_form_translation_id IN (SELECT id FROM published_form_translation WHERE form_id = $id)",
 	).mapValues { (table, predicate) -> scalar("SELECT jsonb_agg(to_jsonb(t) ORDER BY to_jsonb(t)::text)::text FROM $table t WHERE $predicate") }
 
-	private data class RunningPsql(val process: Process, val output: Path, val driver: Path)
-	private data class Result(val exitCode: Int, val output: String) {
-		fun succeeds() {
-			assertEquals(0, exitCode, output)
-			assertTrue(!output.contains("ERROR:"), output)
-		}
-		fun fails() {
-			assertTrue(exitCode != 0, "psql unexpectedly succeeded:\n$output")
-			assertTrue(!output.contains("TEST_DRIVER_COMPLETED"), "psql continued after an error:\n$output")
-		}
+	private fun ContainerPsql.Result.succeeds() {
+		assertEquals(0, exitCode, output)
+		assertTrue(!output.contains("ERROR:"), output)
 	}
 
-	private fun withPausedPreview(executeAfterReview: Boolean = false, duringReview: () -> Unit): Result =
+	private fun ContainerPsql.Result.fails() {
+		assertTrue(exitCode != 0, "psql unexpectedly succeeded:\n$output")
+		assertTrue(!output.contains("TEST_DRIVER_COMPLETED"), "psql continued after an error:\n$output")
+	}
+
+	private fun withPausedPreview(executeAfterReview: Boolean = false, duringReview: () -> Unit): ContainerPsql.Result =
 		connection().use { gate ->
 			gate.createStatement().use { it.execute("SELECT pg_advisory_lock(850021)") }
 			val running = startPsql("$preview\n\\echo PREVIEW_READY\nSELECT pg_advisory_lock(850021);\n${if (executeAfterReview) execute else ""}")
@@ -625,64 +636,17 @@ class PreprodCleanupSqlTest {
 				gate.createStatement().use { it.execute("SELECT pg_advisory_unlock(850021)") }
 				finish(running)
 			} finally {
-				if (running.process.isAlive) running.process.destroyForcibly().waitFor()
+				running.close()
 			}
 		}
 
-	private fun startPsql(sql: String, confirmation: String = "DELETE preprod and preprod-alt\n", databaseName: String = database, stopOnError: Boolean = true): RunningPsql {
-		val driver = Files.createTempFile(temporaryDirectory, "cleanup-", ".sql")
-		val output = Files.createTempFile(temporaryDirectory, "psql-", ".log")
-		Files.writeString(driver, sql + "\n\\echo TEST_DRIVER_COMPLETED\n")
-		val builder = ProcessBuilder("psql", "-X", "-v", "ON_ERROR_STOP=${if (stopOnError) 1 else 0}", "--no-password", "-h", dataSource.serverNames.first(), "-p", dataSource.portNumbers.first().toString(),
-			"-U", dataSource.user, "-d", databaseName, "-f", driver.toString())
-			.redirectErrorStream(true).redirectOutput(output.toFile())
-		builder.environment().apply {
-			keys.filter { it.startsWith("PG") }.toList().forEach { remove(it) }
-			put("PGPASSWORD", dataSource.password)
-			put("PGCONNECT_TIMEOUT", "5")
-		}
-		val process = builder.start()
-		process.outputStream.bufferedWriter().use { it.write(confirmation) }
-		return RunningPsql(process, output, driver)
-	}
+	private fun startPsql(sql: String, confirmation: String = "DELETE preprod and preprod-alt\n", databaseName: String = database, stopOnError: Boolean = true): ContainerPsql.Session =
+		sqlRunner.start(sql + "\n\\echo TEST_DRIVER_COMPLETED\n", confirmation, databaseName, stopOnError)
 
-	private fun finish(running: RunningPsql): Result {
-		if (!running.process.waitFor(190, TimeUnit.SECONDS)) {
-			running.process.destroyForcibly().waitFor()
-			error("psql exceeded transaction budget:\n${Files.readString(running.output)}")
-		}
-		return Result(running.process.exitValue(), Files.readString(running.output))
-	}
+	private fun finish(running: ContainerPsql.Session): ContainerPsql.Result = running.use { it.finish() }
 
-	private fun psql(sql: String, confirmation: String = "DELETE preprod and preprod-alt\n", databaseName: String = database, stopOnError: Boolean = true): Result =
+	private fun psql(sql: String, confirmation: String = "DELETE preprod and preprod-alt\n", databaseName: String = database, stopOnError: Boolean = true): ContainerPsql.Result =
 		finish(startPsql(sql, confirmation, databaseName, stopOnError))
 
-	private fun awaitOutput(running: RunningPsql, marker: String) {
-		val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10)
-		while (!Files.readString(running.output).contains(marker) && System.nanoTime() < deadline && running.process.isAlive) Thread.sleep(20)
-		assertTrue(Files.readString(running.output).contains(marker), Files.readString(running.output))
-	}
-
-	@TestConfiguration(proxyBeanMethods = false)
-	class CleanupDatabaseConfiguration {
-		@Bean
-		@Primary
-		fun cleanupDataSource(@Qualifier("embeddedPostgres") original: DataSource): PGSimpleDataSource {
-			// Reuse EmbeddedDb's PostgreSQL 18 instance without renaming its default database.
-			val settings = original.unwrap(BaseDataSource::class.java)
-			original.connection.use { connection ->
-				connection.createStatement().use { statement ->
-					listOf("forms-api-preprod-db", "forms-api-db", "other").forEach { name ->
-						statement.execute("CREATE DATABASE \"$name\"")
-					}
-				}
-				return PGSimpleDataSource().apply {
-					setURL(connection.metaData.url)
-					user = settings.user
-					password = settings.password
-					databaseName = "forms-api-preprod-db"
-				}
-			}
-		}
-	}
+	private fun awaitOutput(running: ContainerPsql.Session, marker: String) = running.awaitOutput(marker)
 }
