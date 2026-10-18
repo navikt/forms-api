@@ -34,7 +34,7 @@ class ContainerPsql(private val container: PostgreSQLContainer) : AutoCloseable 
 	): Session {
 		check(!executor.isShutdown) { "ContainerPsql is closed" }
 		val directory = "/cleanup/sessions/${UUID.randomUUID()}"
-		exec("mkdir", "-p", directory)
+		fileExec("mkdir", "-p", directory)
 		copy("\\echo CONTAINER_PSQL_READY\n$sql", "$directory/driver.sql")
 		copy(confirmation, "$directory/stdin")
 		copy("", "$directory/output")
@@ -68,12 +68,10 @@ class ContainerPsql(private val container: PostgreSQLContainer) : AutoCloseable 
 	}
 
 	override fun close() {
-		try {
-			sessions.toList().forEach { it.close() }
-		} finally {
-			executor.shutdownNow()
-			check(executor.awaitTermination(10, TimeUnit.SECONDS)) { "Container psql executor did not stop" }
-		}
+		val cleanup = sessions.toList().map { runCatching { it.close() } }
+		executor.shutdownNow()
+		check(executor.awaitTermination(10, TimeUnit.SECONDS)) { "Container psql executor did not stop" }
+		cleanup.forEach { it.getOrThrow() }
 	}
 
 	inner class Session internal constructor(
@@ -86,7 +84,7 @@ class ContainerPsql(private val container: PostgreSQLContainer) : AutoCloseable 
 		fun output(): String {
 			result?.let { return it.output }
 			check(!closed) { "psql session is closed" }
-			return exec("cat", "$directory/output").stdout
+			return container.copyFileFromContainer("$directory/output") { it.readBytes().toString(Charsets.UTF_8) }
 		}
 
 		fun awaitOutput(marker: String) {
@@ -121,21 +119,25 @@ class ContainerPsql(private val container: PostgreSQLContainer) : AutoCloseable 
 		override fun close() {
 			if (closed) return
 			closed = true
-			try {
-				// A delayed exec cannot read the driver after cancellation.
-				exec("rm", "-f", "$directory/driver.sql")
-				// Closing a client socket alone need not cancel a query or release its locks.
+			val failures = mutableListOf<Throwable>()
+			// A delayed exec cannot read the driver after cancellation.
+			runCatching { fileExec("rm", "-f", "$directory/driver.sql") }.onFailure { failures.add(it) }
+			// Always terminate the backend, even if deleting the driver failed.
+			runCatching {
 				DriverManager.getConnection(container.jdbcUrl, container.username, container.password).use { connection ->
 					connection.prepareStatement("SELECT pg_terminate_backend(pid, 5000) FROM pg_stat_activity WHERE application_name = ?").use {
 						it.setString(1, directory)
 						it.execute()
 					}
 				}
-				process.get(5, TimeUnit.SECONDS)
-			} finally {
-				process.cancel(true)
-				sessions.remove(this)
-				exec("rm", "-rf", directory)
+			}.onFailure { failures.add(it) }
+			runCatching { process.get(5, TimeUnit.SECONDS) }.onFailure { failures.add(it) }
+			process.cancel(true)
+			sessions.remove(this)
+			runCatching { fileExec("rm", "-rf", directory) }.onFailure { failures.add(it) }
+			failures.firstOrNull()?.let { first ->
+				failures.drop(1).forEach(first::addSuppressed)
+				throw first
 			}
 		}
 	}
@@ -145,8 +147,21 @@ class ContainerPsql(private val container: PostgreSQLContainer) : AutoCloseable 
 	private fun copy(content: String, destination: String) =
 		container.copyFileToContainer(Transferable.of(content.toByteArray(Charsets.UTF_8)), destination)
 
-	private fun exec(vararg command: String): Container.ExecResult =
-		container.execInContainer(*command).also {
-			check(it.exitCode == 0) { "Container psql file operation failed (${it.exitCode})" }
+	private fun fileExec(vararg command: String): Container.ExecResult = try {
+		fileOperation(command)
+	} catch (_: TimeoutException) {
+		// mkdir and rm are idempotent. Retry one stalled Docker exec, never SQL.
+		fileOperation(command)
+	}
+
+	private fun fileOperation(command: Array<out String>): Container.ExecResult {
+		val operation = executor.submit<Container.ExecResult> { container.execInContainer(*command) }
+		try {
+			return operation.get(2, TimeUnit.SECONDS).also {
+				check(it.exitCode == 0) { "Container psql file operation failed (${it.exitCode})" }
+			}
+		} finally {
+			operation.cancel(true)
 		}
+	}
 }
