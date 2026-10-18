@@ -1,5 +1,5 @@
--- Internal include. Both entry points capture exactly the same source state.
--- Temporary tables must already exist before the read-only preview transaction.
+-- Shared by preview and execute. Only session-local tables are modified.
+-- 1. Clear the previous capture and reject uncertain form data.
 DELETE FROM pg_temp.cleanup_current_forms;
 DELETE FROM pg_temp.cleanup_current_fingerprints;
 
@@ -33,6 +33,7 @@ BEGIN
 END
 $validate$;
 
+-- 2. Classify every form. Any matching keep rule preserves the whole form.
 INSERT INTO pg_temp.cleanup_current_forms
     (id, path, latest_revision_id, is_test, is_locked, is_deleted, explicit_keep, keep)
 SELECT f.id, f.path, latest.id,
@@ -50,6 +51,7 @@ JOIN LATERAL (
 JOIN public.form_attribute a ON a.id = latest.properties_id
 CROSS JOIN pg_temp.cleanup_inputs i;
 
+-- 3. Fingerprint source rows to detect changes before deletion.
 -- Full-row hashes are private session state, never preview output. Row identities
 -- and all protection, revision, translation, attribute and publication data count.
 INSERT INTO pg_temp.cleanup_current_fingerprints (source_table, row_key, fingerprint)

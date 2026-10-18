@@ -1,4 +1,4 @@
--- Set error handling here, before entering any nested include.
+-- 1. Check the target and set default keep rules. Stop errors before nested files.
 \set ON_ERROR_STOP on
 \set ON_ERROR_ROLLBACK off
 \ir guard.sql
@@ -16,7 +16,8 @@
 \set keep_locked_forms true
 \endif
 
--- Invalidate any older approval before validating new inputs. No source writes.
+-- 2. Replace session-local plan tables and invalidate the old approval.
+-- Application tables are not modified.
 DROP TABLE IF EXISTS pg_temp.cleanup_ready;
 DROP TABLE IF EXISTS pg_temp.cleanup_raw_inputs;
 DROP TABLE IF EXISTS pg_temp.cleanup_inputs;
@@ -48,6 +49,7 @@ CREATE TEMP TABLE cleanup_approved_fingerprints
     (LIKE pg_temp.cleanup_current_fingerprints INCLUDING ALL) ON COMMIT PRESERVE ROWS;
 CREATE TEMP TABLE cleanup_candidate_attributes (id bigint PRIMARY KEY) ON COMMIT PRESERVE ROWS;
 
+-- 3. Validate and freeze the keep rules for this preview.
 INSERT INTO pg_temp.cleanup_raw_inputs VALUES (:'keep_paths', :'keep_test_forms', :'keep_locked_forms');
 DO $inputs$
 DECLARE
@@ -84,6 +86,7 @@ END
 $inputs$;
 DELETE FROM pg_temp.cleanup_raw_inputs;
 
+-- 4. Capture a consistent source snapshot without blocking application writes.
 BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY;
 SET LOCAL lock_timeout = '5s';
 SET LOCAL statement_timeout = '120s';
@@ -94,6 +97,7 @@ INSERT INTO pg_temp.cleanup_approved_fingerprints SELECT * FROM pg_temp.cleanup_
 INSERT INTO pg_temp.cleanup_ready VALUES (true);
 COMMIT;
 
+-- 5. Show the rules, row counts, and complete keep/delete lists for review.
 \echo 'Preview only. Execution permanently affects BOTH preprod and preprod-alt.'
 SELECT keep_paths, keep_test_forms, keep_locked_forms FROM pg_temp.cleanup_inputs;
 SELECT source_table, count(*) AS rows

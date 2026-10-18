@@ -1,4 +1,5 @@
--- Set error handling here, before entering any nested include.
+-- 1. Check the target and require a completed preview in this session.
+-- Error handling must be set before entering nested files.
 \set ON_ERROR_STOP on
 \set ON_ERROR_ROLLBACK off
 \ir guard.sql
@@ -14,6 +15,7 @@ BEGIN
 END
 $approval$;
 
+-- 2. Require confirmation before taking any write-blocking locks.
 \echo 'Irreversible deletion after COMMIT. BOTH preprod and preprod-alt are affected.'
 \echo 'Confirmation uses the frozen preview inputs, not current psql input variables.'
 \prompt 'Type DELETE preprod and preprod-alt to continue: ' cleanup_confirmation
@@ -25,12 +27,12 @@ DO $confirmation$ BEGIN RAISE EXCEPTION 'Confirmation rejected; nothing deleted.
 \endif
 \unset cleanup_confirmed
 
+-- 3. Start one bounded transaction and block writes in a fixed lock order.
 BEGIN ISOLATION LEVEL READ COMMITTED;
 SET LOCAL lock_timeout = '5s';
 SET LOCAL statement_timeout = '120s';
 SET LOCAL transaction_timeout = '180s';
 
--- Order is fixed for every cleanup. No write-blocking lock is held at the prompt.
 LOCK TABLE public.form IN SHARE ROW EXCLUSIVE MODE;
 LOCK TABLE public.form_attribute IN SHARE ROW EXCLUSIVE MODE;
 LOCK TABLE public.form_revision IN SHARE ROW EXCLUSIVE MODE;
@@ -40,6 +42,7 @@ LOCK TABLE public.published_form_translation IN SHARE ROW EXCLUSIVE MODE;
 LOCK TABLE public.published_form_translation_revision IN SHARE ROW EXCLUSIVE MODE;
 LOCK TABLE public.form_publication IN SHARE ROW EXCLUSIVE MODE;
 
+-- 4. Rebuild the plan under locks. Abort if anything changed after preview.
 \ir capture.sql
 DO $compare$
 BEGIN
@@ -61,7 +64,8 @@ BEGIN
 END
 $compare$;
 
--- The locked current_forms IDs are the fixed target set for every DELETE.
+-- 5. Save candidate attributes before removing revisions.
+-- All deletions use the same fixed set of form IDs.
 DELETE FROM pg_temp.cleanup_candidate_attributes;
 INSERT INTO pg_temp.cleanup_candidate_attributes (id)
 SELECT r.components_id FROM public.form_revision r
@@ -73,6 +77,8 @@ UNION
 SELECT r.intro_page_id FROM public.form_revision r
 JOIN pg_temp.cleanup_current_forms f ON f.id = r.form_id WHERE NOT f.keep AND r.intro_page_id IS NOT NULL;
 
+-- 6. Delete publication history, translation snapshots, translations, and revisions.
+-- Foreign keys determine the order. Global translations and recipients stay.
 DELETE FROM public.form_publication p
 USING pg_temp.cleanup_current_forms f WHERE p.form_id = f.id AND NOT f.keep;
 
@@ -93,6 +99,7 @@ USING pg_temp.cleanup_current_forms f WHERE t.form_id = f.id AND NOT f.keep;
 DELETE FROM public.form_revision r
 USING pg_temp.cleanup_current_forms f WHERE r.form_id = f.id AND NOT f.keep;
 
+-- 7. Delete only candidate attributes no longer used in any revision column.
 -- Build remaining references once rather than scanning revisions per candidate.
 WITH referenced_attributes AS MATERIALIZED (
     SELECT components_id AS id FROM public.form_revision
@@ -107,6 +114,7 @@ WHERE a.id = candidate.id AND NOT EXISTS (
     SELECT 1 FROM referenced_attributes referenced WHERE referenced.id = a.id
 );
 
+-- 8. Delete the forms and commit everything together.
 DELETE FROM public.form f
 USING pg_temp.cleanup_current_forms target WHERE f.id = target.id AND NOT target.keep;
 
