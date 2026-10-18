@@ -68,6 +68,20 @@ For flere detaljer, se
 [Customizing Docker host detection](https://java.testcontainers.org/features/configuration/#customizing-docker-host-detection)
 i dokumentasjonen til [Testcontainers](https://java.testcontainers.org/).
 
+#### Docker compose
+
+Når du bruker Colima er det enklest å installere Compose som en CLI plugin manuelt.
+
+    brew install docker-compose
+
+Og registrere den i `~/.docker/config.json`
+
+    {
+      "cliPluginsExtraDirs": [
+        "/opt/homebrew/lib/docker/cli-plugins"
+      ]
+    }
+
 ### Flyway
 
 Ved bruk av db i docker container under utvikling lokalt er det lett å gjøre Flyway sur dersom man endrer på
