@@ -28,8 +28,9 @@ class ContainerPsql(private val container: PostgreSQLContainer) : AutoCloseable 
 	fun start(
 		sql: String,
 		confirmation: String = "DELETE preprod and preprod-alt\n",
-		databaseName: String = "forms-api-preprod-db",
+		databaseName: String = container.databaseName,
 		stopOnError: Boolean = true,
+		expectedDatabase: String? = null,
 	): Session {
 		check(!executor.isShutdown) { "ContainerPsql is closed" }
 		val directory = "/cleanup/sessions/${UUID.randomUUID()}"
@@ -37,6 +38,7 @@ class ContainerPsql(private val container: PostgreSQLContainer) : AutoCloseable 
 		copy("\\echo CONTAINER_PSQL_READY\n$sql", "$directory/driver.sql")
 		copy(confirmation, "$directory/stdin")
 		copy("", "$directory/output")
+		val expectedDatabaseArguments = expectedDatabase?.let { arrayOf("-v", "cleanup_database=$it") } ?: emptyArray()
 		val process = executor.submit<Int> {
 			container.execInContainer(
 				"sh", "-c", """
@@ -48,6 +50,7 @@ class ContainerPsql(private val container: PostgreSQLContainer) : AutoCloseable 
 				""".trimIndent(),
 				"container-psql", directory,
 				"-X", "-v", "ON_ERROR_STOP=${if (stopOnError) 1 else 0}",
+				*expectedDatabaseArguments,
 				"--no-password", "-h", "127.0.0.1", "-p", "5432",
 				"-U", container.username, "-d", databaseName, "-f", "$directory/driver.sql",
 			).exitCode

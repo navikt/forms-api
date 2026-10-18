@@ -14,7 +14,6 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.resttestclient.TestRestTemplate
 import org.springframework.boot.resttestclient.autoconfigure.AutoConfigureTestRestTemplate
-import org.springframework.context.annotation.Import
 import org.springframework.test.context.ActiveProfiles
 
 @ActiveProfiles("test")
@@ -23,7 +22,6 @@ import org.springframework.test.context.ActiveProfiles
 )
 @AutoConfigureTestRestTemplate
 @EnableMockOAuth2Server
-@Import(TestDatabaseConfiguration::class)
 abstract class ApplicationTest(val setupPublishedGlobalTranslations: Boolean = false) {
 
 	@Autowired

@@ -35,11 +35,17 @@ Bruk en egen tilkobling uten en pågående transaksjon og med AUTOCOMMIT på.
 
 ```sql
 SELECT current_database();
+\set cleanup_database 'forms-api-preprod-db'
 \set keep_paths '["skjema-som-skal-beholdes"]'
 \set keep_test_forms true
 \set keep_locked_forms true
 \i scripts/preprod-cleanup/preview.sql
 ```
+
+`cleanup_database` er navnet tilkoblingen må ha, ikke en kommando for å bytte
+database. Standardverdien er `forms-api-preprod-db`. For en lokal database kan du
+sette `\set cleanup_database 'forms-api-local'`. Tom verdi eller feil navn gir
+avbrudd før preview eller sletting.
 
 Bytt ut eksempel-pathen med eksisterende paths. Bruk `\set keep_paths '[]'`
 uten eksplisitte unntak. I et nytt psql-skall er standardverdiene tom path-liste
@@ -83,9 +89,14 @@ FK-kontroller uten indeks skanner revisjoner for hvert slettet attributt.
 Ved større datamengder enn volumtesten må du måle lokalt før kjøring.
 Ikke øk tidsgrensene eller innfør batcher uten ny avklaring.
 
-SQL avviser alle databasenavn unntatt `forms-api-preprod-db`. Bruk alltid den faste
-dev-kommandoen og personlig dev-tilgang. Databasenavnet alene beviser ikke hvilket
-GCP-prosjekt tilkoblingen tilhører.
+SQL krever at databasenavnet matcher `cleanup_database`. Produksjonsnavnet
+`forms-api-db` avvises alltid, også når det oppgis som forventet navn. Denne
+sperren har ingen konfigurerbar overstyring. Oppdater sperren dersom
+produksjonsdatabasen får nytt navn.
+
+Bruk alltid den faste dev-kommandoen og personlig dev-tilgang. SQL kan ikke bevise
+hvilket GCP-prosjekt eller cluster en tilkobling tilhører. Et produksjonssystem
+med et annet databasenavn kan derfor ikke identifiseres av navnesperren alene.
 
 ## Ved feil eller avbrudd
 
@@ -115,6 +126,8 @@ Skriptet kopierer ikke produksjonsdata. Bruk eksisterende import ved behov.
 Docker må kjøre. Testene bruker `ApplicationTest` og PostgreSQL 18 i en isolert
 container med repoets migrasjoner. SQL-filene kjøres med containerens `psql`.
 Du trenger ikke installere `psql` lokalt for å kjøre testene.
+Test og `local` bruker samme `EmbeddedDb`-konfigurasjon med databasen
+`forms-api-local`. Testene oppgir dette navnet gjennom `cleanup_database`.
 Volumtesten er utelatt som standard, også ved `mvn install`.
 
 ```bash

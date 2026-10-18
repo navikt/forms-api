@@ -20,6 +20,11 @@ import org.junit.jupiter.api.TestInstance
 import org.postgresql.ds.PGSimpleDataSource
 import org.springframework.beans.factory.annotation.Autowired
 import org.testcontainers.postgresql.PostgreSQLContainer
+import org.yaml.snakeyaml.LoaderOptions
+import org.yaml.snakeyaml.Yaml
+import org.yaml.snakeyaml.constructor.SafeConstructor
+import java.nio.file.Files
+import java.nio.file.Path
 import java.sql.Connection
 import java.util.concurrent.TimeUnit
 import kotlin.test.assertEquals
@@ -35,7 +40,12 @@ class PreprodCleanupSqlTest : ApplicationTest() {
 	lateinit var postgres: PostgreSQLContainer
 	private lateinit var sqlRunner: ContainerPsql
 	private lateinit var authToken: String
-	private val database = "forms-api-preprod-db"
+	private val database get() = postgres.databaseName
+	private val productionDatabase = Files.newInputStream(Path.of(".nais/vars-prod.yaml")).use { input ->
+		val manifest = Yaml(SafeConstructor(LoaderOptions())).load<Map<String, Any>>(input)
+		(manifest.getValue("database") as Map<*, *>)["name"] as String
+	}
+	private val guardDatabases = listOf(productionDatabase, "other", "forms-api-preprod-db")
 	private val tables = listOf(
 		"form", "form_attribute", "form_revision", "form_translation", "form_translation_revision",
 		"published_form_translation", "published_form_translation_revision", "form_publication",
@@ -48,7 +58,7 @@ class PreprodCleanupSqlTest : ApplicationTest() {
 		sqlRunner = ContainerPsql(postgres)
 		connection().use { connection ->
 			connection.createStatement().use { statement ->
-				listOf("forms-api-db", "other").forEach { name ->
+				guardDatabases.forEach { name ->
 					statement.execute("DROP DATABASE IF EXISTS \"$name\"")
 					statement.execute("CREATE DATABASE \"$name\"")
 				}
@@ -63,12 +73,29 @@ class PreprodCleanupSqlTest : ApplicationTest() {
 
 	@BeforeEach
 	fun prepareCleanupFixtures() {
-		listOf("forms-api-db", "other").forEach { name ->
+		guardDatabases.forEach { name ->
 			Flyway.configure().dataSource(databaseDataSource(name))
 				.locations("classpath:db/migration").cleanDisabled(false).load().apply {
 					clean()
 					migrate()
 				}
+			// The API never connects to guard targets, so these fixtures use SQL.
+			connection(name).use { connection ->
+				connection.createStatement().use {
+					it.execute("""
+						WITH fixture AS (
+						    INSERT INTO form(path, created_by) VALUES ('guard-fixture', 'fixture') RETURNING id
+						), properties AS (
+						    INSERT INTO form_attribute(name, value) VALUES ('properties', '{}') RETURNING id
+						), components AS (
+						    INSERT INTO form_attribute(name, value) VALUES ('components', '[]') RETURNING id
+						)
+						INSERT INTO form_revision(form_id, revision, title, created_by, properties_id, components_id)
+						SELECT fixture.id, 1, 'Guard fixture', 'fixture', properties.id, components.id
+						FROM fixture, properties, components
+					""".trimIndent())
+				}
+			}
 		}
 		authToken = mockOAuth2Server.createMockToken()
 		val globalRequest = GlobalTranslationsTestdata.translations.getValue("required")
@@ -346,32 +373,66 @@ class PreprodCleanupSqlTest : ApplicationTest() {
 	}
 
 	@Test
-	fun `wrong database guards reject production and unknown names`() {
-		listOf("forms-api-db", "other").forEach { name ->
-			val before = snapshot(name)
-			listOf(preview, execute).forEach { entry ->
-				val result = psql(entry, databaseName = name)
-				result.fails()
-				assertTrue(result.output.contains("Cleanup requires database forms-api-preprod-db"), result.output)
-				assertEquals(before, snapshot(name), name)
-			}
+	fun `production database is denied independently of expected database configuration`() {
+		listOf(null, productionDatabase, database, "", "other").forEach { expected ->
+			assertGuardRejected(expected, productionDatabase, "Cleanup is forbidden on the production database.")
 		}
 	}
 
 	@Test
-	fun `initially disabled error stopping never bypasses guard inside entry scripts`() {
-		listOf("forms-api-db", "other").forEach { name ->
-			val before = snapshot(name)
-			listOf(preview, execute).forEach { entry ->
-				val result = psql("$entry\nSELECT pg_catalog.to_regclass('pg_temp.cleanup_ready') IS NULL AS guard_rejected \\gset\n\\echo GUARD_REJECTED :guard_rejected",
-					databaseName = name, stopOnError = false)
-				assertTrue(result.output.contains("Cleanup requires database forms-api-preprod-db"), result.output)
-				assertTrue(result.output.contains("GUARD_REJECTED t"), result.output)
-				assertTrue(!result.output.contains("Preview only."), result.output)
-				assertTrue(!result.output.contains("Irreversible deletion after COMMIT"), result.output)
-				assertEquals(before, snapshot(name))
-			}
+	fun `production expected name is denied even on the local database`() {
+		form("remove", published = true)
+		assertGuardRejected(productionDatabase, error = "cleanup_database must not name the production database.")
+	}
+
+	@Test
+	fun `empty and whitespace expected names are rejected`() {
+		form("remove", published = true)
+		listOf("", " ", "\t\n\r ").forEach { expected ->
+			assertGuardRejected(expected, error = "cleanup_database must not be empty or whitespace.")
 		}
+	}
+
+	@Test
+	fun `default expected name rejects local and unknown databases without temporary setup`() {
+		form("remove", published = true)
+		listOf(database, "other").forEach { name ->
+			assertGuardRejected(null, name, "Connected database does not match cleanup_database.")
+		}
+	}
+
+	@Test
+	fun `configured expected name must match exactly`() {
+		form("remove", published = true)
+		listOf("other", " $database", "$database ", database.uppercase()).forEach { expected ->
+			assertGuardRejected(expected, error = "Connected database does not match cleanup_database.")
+		}
+	}
+
+	@Test
+	fun `expected name is a SQL literal rather than executable source`() {
+		form("remove", published = true)
+		val injection = "'; DELETE FROM public.form; SELECT pg_catalog.set_config('cleanup.expected_database', '$database', false); --"
+		assertGuardRejected(injection, error = "Connected database does not match cleanup_database.")
+	}
+
+	@Test
+	fun `operational default permits the preprod database without an override`() {
+		psql("$preview\n$execute", databaseName = "forms-api-preprod-db", expectedDatabase = null).succeeds()
+		assertEquals("0", scalar("SELECT count(*) FROM form", "forms-api-preprod-db"))
+	}
+
+	@Test
+	fun `explicitly configured nonproduction database is permitted without a fixed allowlist`() {
+		psql("$preview\n$execute", databaseName = "other", expectedDatabase = "other").succeeds()
+		assertEquals("0", scalar("SELECT count(*) FROM form", "other"))
+	}
+
+	@Test
+	fun `explicitly configured shared local database permits cleanup`() {
+		form("remove", published = true)
+		psql("$preview\n$execute", expectedDatabase = database).succeeds()
+		assertTrue(paths().isEmpty())
 	}
 
 	@Test
@@ -640,13 +701,36 @@ class PreprodCleanupSqlTest : ApplicationTest() {
 			}
 		}
 
-	private fun startPsql(sql: String, confirmation: String = "DELETE preprod and preprod-alt\n", databaseName: String = database, stopOnError: Boolean = true): ContainerPsql.Session =
-		sqlRunner.start(sql + "\n\\echo TEST_DRIVER_COMPLETED\n", confirmation, databaseName, stopOnError)
+	private fun assertGuardRejected(expectedDatabase: String?, databaseName: String = database, error: String) {
+		val before = snapshot(databaseName)
+		listOf(preview, execute).forEach { entry ->
+			listOf(true, false).forEach { stopOnError ->
+				val result = psql("""
+					$entry
+					SELECT pg_catalog.pg_my_temp_schema() = 0 AND pg_catalog.to_regclass('pg_temp.cleanup_ready') IS NULL AS guard_rejected \gset
+					\echo GUARD_REJECTED :guard_rejected
+				""".trimIndent(), databaseName = databaseName, stopOnError = stopOnError, expectedDatabase = expectedDatabase)
+				if (stopOnError) result.fails()
+				else assertTrue(result.output.contains("GUARD_REJECTED t"), result.output)
+				assertTrue(result.output.contains(error), result.output)
+				assertTrue(!result.output.contains("Preview only."), result.output)
+				assertTrue(!result.output.contains("Irreversible deletion after COMMIT"), result.output)
+				assertTrue(!result.output.contains("CREATE TABLE"), result.output)
+				if (!expectedDatabase.isNullOrBlank()) assertTrue(!result.output.contains(expectedDatabase), result.output)
+				assertEquals(before, snapshot(databaseName), databaseName)
+			}
+		}
+	}
+
+	private fun startPsql(sql: String, confirmation: String = "DELETE preprod and preprod-alt\n", databaseName: String = database,
+		stopOnError: Boolean = true, expectedDatabase: String? = database): ContainerPsql.Session =
+		sqlRunner.start(sql + "\n\\echo TEST_DRIVER_COMPLETED\n", confirmation, databaseName, stopOnError, expectedDatabase)
 
 	private fun finish(running: ContainerPsql.Session): ContainerPsql.Result = running.use { it.finish() }
 
-	private fun psql(sql: String, confirmation: String = "DELETE preprod and preprod-alt\n", databaseName: String = database, stopOnError: Boolean = true): ContainerPsql.Result =
-		finish(startPsql(sql, confirmation, databaseName, stopOnError))
+	private fun psql(sql: String, confirmation: String = "DELETE preprod and preprod-alt\n", databaseName: String = database,
+		stopOnError: Boolean = true, expectedDatabase: String? = database): ContainerPsql.Result =
+		finish(startPsql(sql, confirmation, databaseName, stopOnError, expectedDatabase))
 
 	private fun awaitOutput(running: ContainerPsql.Session, marker: String) = running.awaitOutput(marker)
 }
