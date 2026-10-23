@@ -24,6 +24,10 @@ accessPolicy:
         namespace: skjemadigitalisering
       - application: form-spec-api-preprod-alt
         namespace: skjemadigitalisering
+      - application: sendinn-preprod
+        namespace: skjemadigitalisering
+      - application: sendinn-preprod-alt
+        namespace: skjemadigitalisering
       - application: azure-token-generator
         namespace: nais
 azure:
