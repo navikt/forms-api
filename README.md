@@ -53,6 +53,29 @@ Swagger url: http://localhost:8082/swagger-ui/index.html
 
 OpenAPI descriptions: http://localhost:8082/v3/api-docs
 
+## Chainguard og vedlikeholdsbygg
+
+Dockerfile bruker Navs Chainguard JRE med taggen `openjdk-21`. Før lokale Docker-bygg må du sette opp registry-autentisering og logge inn med Nav-kontoen din:
+
+```sh
+gcloud auth configure-docker europe-north1-docker.pkg.dev
+gcloud auth login
+```
+
+GitHub Actions bruker `nais/docker-build-push` til autentisering og henter oppdatert baseimage ved hvert bygg. Repoet må være registrert på teamet i Nais Console.
+
+Workflowen **Rebuild and deploy** bygger med tester og deployer til preprod daglig kl. 05.23 UTC. Tidsstyrte kjøringer bruker `main` og kan bli forsinket av GitHub. De overskriver dermed eventuelle branch-bygg som er deployet til preprod.
+
+For å bygge og deploye uten kodeendring åpner du workflowen under Actions og velger **Run workflow**. Velg `preprod` eller `prod` og branchen som skal bygges. Prod krever `main`. Prod får ikke tidsstyrt deploy, så teamet må starte prod-bygg etter kontroll i preprod. Push til `main` bygger, tester og deployer fortsatt til prod.
+
+Preprod og prod bygger hvert sitt image. En manuell prod-kjøring henter baseimaget på nytt og garanterer derfor ikke samme image som ble testet i preprod. Hvis dere trenger identiske images i begge miljøer, må dere i stedet innføre en flyt som bygger én gang og deployer samme image til begge.
+
+Deploy-jobber til samme miljø bruker en felles concurrency-gruppe. GitHub lar én jobb kjøre og én vente. En ny deploy-jobb kan erstatte den ventende, men avbryter ikke deployen som pågår. Bygg og tester omfattes ikke av denne køen.
+
+Før prod-deploy kontrollerer workflowen at byggets commit fortsatt er toppen av `main`. Hvis `main` har gått videre under bygg eller venting, feiler deploy-jobben før den sender noe til Nais. Start et nytt bygg hvis det ikke allerede kjører et for den nye commiten.
+
+Et nytt baseimage kommer ikke med ved restart eller deploy av et eksisterende app-image. Major-taggen gir oppdateringer innen Java 21 ved nye bygg, men gjør at samme kildekode kan gi et annet image senere. Digest-pinning med [Digestabot](https://github.com/navikt/digestabot) er alternativet for reproduserbare bygg. Se [Navs Chainguard-dokumentasjon](https://sikkerhet.nav.no/docs/verktoy/chainguard-dockerimages/).
+
 ## Kjente utfordringer ved kjøring lokalt
 
 ### Colima
