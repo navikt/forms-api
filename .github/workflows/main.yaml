@@ -7,62 +7,15 @@ on:
       - '.nais/alerts/**'
       - '.github/workflows/alerts-deploy.yaml'
 permissions:
-  contents: "read"
+  contents: read
 
 jobs:
-  build-and-push:
-    name: Build and push docker image
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
+  build-and-deploy:
+    uses: ./.github/workflows/build-and-deploy.yaml
     permissions:
       contents: read
       id-token: write
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
-      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
-        with:
-          distribution: 'temurin'
-          java-version: 21
-          cache: 'maven'
-      - name: set timezone
-        uses: szenius/set-timezone@1f9716b0f7120e344f0c62bb7b1ee98819aefd42 # v2.0
-        with:
-          timezoneLinux: "Europe/Oslo"
-      - name: Build project and run tests
-        run: mvn install
-      - name: Build and push Docker image
-        if: github.ref_name == 'main'
-        uses: nais/docker-build-push@dd7421d5068057a020ca46ead966c26190c516b1 # v0
-        id: docker-build-push
-        with:
-          team: fyllut-sendinn
-          identity_provider: ${{ secrets.NAIS_WORKLOAD_IDENTITY_PROVIDER }}
-          project_id: ${{ vars.NAIS_MANAGEMENT_PROJECT_ID }}
-          pull: true
-    outputs:
-        image: ${{ steps.docker-build-push.outputs.image }}
-
-  deploy-to-prod:
-    name: Deploy to prod
-    concurrency:
-      group: forms-api-prod
-      cancel-in-progress: false
-    needs: [build-and-push]
-    if: github.ref_name == 'main'
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    permissions:
-      contents: read
-      id-token: write
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
-      - uses: nais/deploy/actions/deploy@3944168fd20b7eea3818e97de3810f74b54c78ff # v2
-        env:
-          CLUSTER: prod-gcp
-          RESOURCE: .nais/app.yaml
-          VARS: .nais/vars-prod.yaml
-          VAR: image=${{needs.build-and-push.outputs.image}}
+    with:
+      deploy-prod: ${{ github.ref == 'refs/heads/main' }}
+    secrets:
+      NAIS_WORKLOAD_IDENTITY_PROVIDER: ${{ secrets.NAIS_WORKLOAD_IDENTITY_PROVIDER }}
