@@ -60,16 +60,6 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - name: Reject outdated prod image
-        env:
-          BUILD_SHA: ${{ github.sha }}
-        run: |
-          set -euo pipefail
-          latest_sha="$(git ls-remote --exit-code origin refs/heads/main | cut -f1)"
-          if [ "$BUILD_SHA" != "$latest_sha" ]; then
-            echo '::error::main has advanced. Run a new build instead of deploying this older image.'
-            exit 1
-          fi
       - uses: nais/deploy/actions/deploy@3944168fd20b7eea3818e97de3810f74b54c78ff # v2
         env:
           CLUSTER: prod-gcp

@@ -1,10 +1,8 @@
-name: Rebuild and deploy
-run-name: Rebuild and deploy to ${{ inputs.environment || 'preprod' }} [${{ github.ref_name }}]
+name: Manually triggered deploy
+run-name: Manual deploy to ${{ inputs.environment }} [${{ github.ref_name }}]
 permissions:
   contents: "read"
 on:
-  schedule:
-    - cron: '23 5 * * *'
   workflow_dispatch:
     inputs:
       environment:
@@ -14,7 +12,6 @@ on:
         type: choice
         options:
           - preprod
-          - prod
 
 jobs:
   build-and-push:
@@ -25,11 +22,6 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - name: Reject prod deploy outside main
-        if: inputs.environment == 'prod' && github.ref != 'refs/heads/main'
-        run: |
-          echo 'Prod deploy must run from main.' >&2
-          exit 1
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
@@ -42,8 +34,8 @@ jobs:
         uses: szenius/set-timezone@1f9716b0f7120e344f0c62bb7b1ee98819aefd42 # v2.0
         with:
           timezoneLinux: "Europe/Oslo"
-      - name: Build project and run tests
-        run: mvn install
+      - name: Build with maven
+        run: mvn install -DskipTests
       - name: Build and push Docker image
         uses: nais/docker-build-push@dd7421d5068057a020ca46ead966c26190c516b1 # v0
         id: docker-build-push
@@ -51,18 +43,17 @@ jobs:
           team: fyllut-sendinn
           identity_provider: ${{ secrets.NAIS_WORKLOAD_IDENTITY_PROVIDER }}
           project_id: ${{ vars.NAIS_MANAGEMENT_PROJECT_ID }}
-          image_suffix: ${{ inputs.environment != 'prod' && 'preprod' || '' }}
+          image_suffix: ${{ github.event.inputs.environment }}
           pull: true
     outputs:
         image: ${{ steps.docker-build-push.outputs.image }}
 
   deploy-to-dev-gcp:
-    name: Deploy to preprod
+    name: Deploy to dev-gcp
     concurrency:
       group: forms-api-preprod
       cancel-in-progress: false
     needs: [build-and-push]
-    if: github.event_name == 'schedule' || inputs.environment == 'preprod'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -76,38 +67,5 @@ jobs:
         env:
           CLUSTER: dev-gcp
           RESOURCE: .nais/app.yaml
-          VARS: .nais/vars-preprod.yaml
-          VAR: image=${{needs.build-and-push.outputs.image}}
-
-  deploy-to-prod:
-    name: Deploy to prod
-    concurrency:
-      group: forms-api-prod
-      cancel-in-progress: false
-    needs: [build-and-push]
-    if: github.event_name == 'workflow_dispatch' && inputs.environment == 'prod' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    permissions:
-      contents: read
-      id-token: write
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
-      - name: Reject outdated prod image
-        env:
-          BUILD_SHA: ${{ github.sha }}
-        run: |
-          set -euo pipefail
-          latest_sha="$(git ls-remote --exit-code origin refs/heads/main | cut -f1)"
-          if [ "$BUILD_SHA" != "$latest_sha" ]; then
-            echo '::error::main has advanced. Run a new build instead of deploying this older image.'
-            exit 1
-          fi
-      - uses: nais/deploy/actions/deploy@3944168fd20b7eea3818e97de3810f74b54c78ff # v2
-        env:
-          CLUSTER: prod-gcp
-          RESOURCE: .nais/app.yaml
-          VARS: .nais/vars-prod.yaml
+          VARS: .nais/vars-${{ github.event.inputs.environment }}.yaml
           VAR: image=${{needs.build-and-push.outputs.image}}

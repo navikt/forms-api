@@ -64,15 +64,15 @@ gcloud auth login
 
 GitHub Actions bruker `nais/docker-build-push` til autentisering og henter oppdatert baseimage ved hvert bygg. Repoet må være registrert på teamet i Nais Console.
 
-Workflowen **Rebuild and deploy** bygger med tester og deployer til preprod daglig kl. 05.23 UTC. Tidsstyrte kjøringer bruker `main` og kan bli forsinket av GitHub. De overskriver dermed eventuelle branch-bygg som er deployet til preprod.
+Workflowen **Manually triggered deploy** brukes bare til preprod. Velg **Run workflow** under Actions og branchen som skal bygges. Denne flyten hopper over tester, slik den gjorde før Chainguard-bytte.
 
-For å bygge og deploye uten kodeendring åpner du workflowen under Actions og velger **Run workflow**. Velg `preprod` eller `prod` og branchen som skal bygges. Prod krever `main`. Prod får ikke tidsstyrt deploy, så teamet må starte prod-bygg etter kontroll i preprod. Push til `main` bygger, tester og deployer fortsatt til prod.
+For å hente nye Chainguard-fikser i prod uten kodeendring åpner du den separate workflowen **Rebuild and deploy to prod** og velger **Run workflow** med `main`. Den bygger applikasjonen med tester, henter oppdatert baseimage og deployer til prod. Andre brancher blir hoppet over. Workflowen blir tilgjengelig for manuell kjøring når den finnes på default-branchen.
+
+Ingen av workflowene har tidsstyrt deploy. Teamet starter vedlikeholdsbygg ved behov. Push til `main` bygger, tester og deployer fortsatt til prod.
 
 Preprod og prod bygger hvert sitt image. En manuell prod-kjøring henter baseimaget på nytt og garanterer derfor ikke samme image som ble testet i preprod. Hvis dere trenger identiske images i begge miljøer, må dere i stedet innføre en flyt som bygger én gang og deployer samme image til begge.
 
-Deploy-jobber til samme miljø bruker en felles concurrency-gruppe. GitHub lar én jobb kjøre og én vente. En ny deploy-jobb kan erstatte den ventende, men avbryter ikke deployen som pågår. Bygg og tester omfattes ikke av denne køen.
-
-Før prod-deploy kontrollerer workflowen at byggets commit fortsatt er toppen av `main`. Hvis `main` har gått videre under bygg eller venting, feiler deploy-jobben før den sender noe til Nais. Start et nytt bygg hvis det ikke allerede kjører et for den nye commiten.
+Prod-jobbene bruker en felles concurrency-gruppe. GitHub lar én jobb kjøre og én vente. En ny deploy-jobb kan erstatte den ventende, men avbryter ikke deployen som pågår. Bygg og tester omfattes ikke av denne køen. Teamet må koordinere manuelle prod-bygg med push til `main`, siden parallelle bygg kan bli ferdige i ulik rekkefølge.
 
 Et nytt baseimage kommer ikke med ved restart eller deploy av et eksisterende app-image. Major-taggen gir oppdateringer innen Java 21 ved nye bygg, men gjør at samme kildekode kan gi et annet image senere. Digest-pinning med [Digestabot](https://github.com/navikt/digestabot) er alternativet for reproduserbare bygg. Se [Navs Chainguard-dokumentasjon](https://sikkerhet.nav.no/docs/verktoy/chainguard-dockerimages/).
 
