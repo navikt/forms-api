@@ -1,11 +1,6 @@
 name: Shared build and deploy
 on:
   workflow_call:
-    inputs:
-      deploy-prod:
-        description: Publish image and deploy to prod from main
-        type: boolean
-        default: false
     secrets:
       NAIS_WORKLOAD_IDENTITY_PROVIDER:
         required: true
@@ -36,7 +31,7 @@ jobs:
       - name: Build project and run tests
         run: mvn install
       - name: Build and push Docker image
-        if: inputs.deploy-prod && github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/main'
         uses: nais/docker-build-push@dd7421d5068057a020ca46ead966c26190c516b1 # v0
         id: docker-build-push
         with:
@@ -53,7 +48,7 @@ jobs:
       group: forms-api-prod
       cancel-in-progress: false
     needs: [build-and-push]
-    if: inputs.deploy-prod && github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:

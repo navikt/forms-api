@@ -15,7 +15,5 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    with:
-      deploy-prod: ${{ github.ref == 'refs/heads/main' }}
     secrets:
       NAIS_WORKLOAD_IDENTITY_PROVIDER: ${{ secrets.NAIS_WORKLOAD_IDENTITY_PROVIDER }}

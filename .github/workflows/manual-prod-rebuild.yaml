@@ -12,7 +12,5 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    with:
-      deploy-prod: true
     secrets:
       NAIS_WORKLOAD_IDENTITY_PROVIDER: ${{ secrets.NAIS_WORKLOAD_IDENTITY_PROVIDER }}
