@@ -53,28 +53,18 @@ Swagger url: http://localhost:8082/swagger-ui/index.html
 
 OpenAPI descriptions: http://localhost:8082/v3/api-docs
 
-## Chainguard og vedlikeholdsbygg
+## Chainguard og oppdatering av baseimage
 
-Dockerfile bruker Navs Chainguard JRE med taggen `openjdk-21`. Før lokale Docker-bygg må du sette opp registry-autentisering og logge inn med Nav-kontoen din:
+Forms-api bruker et baseimage fra Chainguard. Sikkerhetsfikser i baseimaget kommer med når vi bygger og deployer applikasjonen på nytt, ikke ved restart.
 
-```sh
-gcloud auth configure-docker europe-north1-docker.pkg.dev
-gcloud auth login
-```
+Ved vanlig deploy fra `main` henter bygget oppdatert baseimage. Hvis vi trenger en sikkerhetsfiks uten å vente på neste kodeendring, kan vi starte et nytt bygg og deploye til prod manuelt:
 
-GitHub Actions bruker `nais/docker-build-push` til autentisering og henter oppdatert baseimage ved hvert bygg. Repoet må være registrert på teamet i Nais Console.
+1. Åpne **Actions** i GitHub og velg **Rebuild and deploy to prod**.
+2. Velg **Run workflow** med branchen `main`.
 
-Workflowen **Manually triggered deploy** brukes bare til preprod. Velg **Run workflow** under Actions og branchen som skal bygges. Denne flyten hopper over tester, slik den gjorde før Chainguard-bytte.
+Workflowen kjører tester, bygger med oppdatert baseimage og deployer til prod.
 
-For å hente nye Chainguard-fikser i prod uten kodeendring åpner du den separate workflowen **Rebuild and deploy to prod** og velger **Run workflow** med `main`. Den bygger applikasjonen med tester, henter oppdatert baseimage og deployer til prod. Andre brancher blir hoppet over. Workflowen blir tilgjengelig for manuell kjøring når den finnes på default-branchen.
-
-Ingen av workflowene har tidsstyrt deploy. Teamet starter vedlikeholdsbygg ved behov. Push til `main` bygger, tester og deployer fortsatt til prod.
-
-Preprod og prod bygger hvert sitt image. En manuell prod-kjøring henter baseimaget på nytt og garanterer derfor ikke samme image som ble testet i preprod. Hvis dere trenger identiske images i begge miljøer, må dere i stedet innføre en flyt som bygger én gang og deployer samme image til begge.
-
-Prod-jobbene bruker en felles concurrency-gruppe. GitHub lar én jobb kjøre og én vente. En ny deploy-jobb kan erstatte den ventende, men avbryter ikke deployen som pågår. Bygg og tester omfattes ikke av denne køen. Teamet må koordinere manuelle prod-bygg med push til `main`, siden parallelle bygg kan bli ferdige i ulik rekkefølge.
-
-Et nytt baseimage kommer ikke med ved restart eller deploy av et eksisterende app-image. Major-taggen gir oppdateringer innen Java 21 ved nye bygg, men gjør at samme kildekode kan gi et annet image senere. Digest-pinning med [Digestabot](https://github.com/navikt/digestabot) er alternativet for reproduserbare bygg. Se [Navs Chainguard-dokumentasjon](https://sikkerhet.nav.no/docs/verktoy/chainguard-dockerimages/).
+Se [Navs Chainguard-dokumentasjon](https://sikkerhet.nav.no/docs/verktoy/chainguard-dockerimages/).
 
 ## Kjente utfordringer ved kjøring lokalt
 
