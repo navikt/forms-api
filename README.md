@@ -57,6 +57,8 @@ OpenAPI descriptions: http://localhost:8082/v3/api-docs
 
 Forms-api bruker et baseimage fra Chainguard. Sikkerhetsfikser i baseimaget kommer med når vi bygger og deployer applikasjonen på nytt, ikke ved restart.
 
+For å laste ned Chainguard-images lokalt, kjør først `gcloud auth configure-docker europe-north1-docker.pkg.dev` og deretter `gcloud auth login` med nav.no-kontoen din, som beskrevet i [Navs veiledning for lokal tilgang](https://sikkerhet.nav.no/docs/verktoy/chainguard-dockerimages/#lokalt-p%C3%A5-din-maskin).
+
 Ved vanlig deploy fra `main` henter bygget oppdatert baseimage. Hvis vi trenger en sikkerhetsfiks uten å vente på neste kodeendring, kan vi starte et nytt bygg og deploye til prod manuelt:
 
 1. Åpne **Actions** i GitHub og velg **Rebuild and deploy to prod**.
