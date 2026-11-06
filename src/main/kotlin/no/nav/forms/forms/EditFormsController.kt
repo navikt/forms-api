@@ -106,4 +106,11 @@ class EditFormsController(
 		return ResponseEntity.ok(form)
 	}
 
+	@Unprotected
+	override fun getFormRevisions(formPath: String): ResponseEntity<List<String>> {
+		val revisions = editFormsService.getFormRevisions(formPath)
+
+		return ResponseEntity.ok(revisions)
+	}
+
 }

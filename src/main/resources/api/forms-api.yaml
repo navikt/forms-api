@@ -61,6 +61,9 @@ paths:
   /v1/form-publications/{formPath}/translations:
     $ref: "./forms/form-publication-translations.yaml"
 
+  /v1/forms/{formPath}/revisions:
+    $ref: "./forms/form-revisions.yaml"
+
   /v1/global-translations:
     $ref: "./global-translations/global_translations.yaml"
 

@@ -238,3 +238,9 @@ components:
           $ref: "#/components/schemas/FormStatus"
         lock:
           $ref: "#/components/schemas/FormLock"
+    FormRevisions:
+      type: array
+      description: Liste over skjemarevisjoner via form_revision_id-er
+      example: {['1', '2', '3']}
+      items:
+        type: string

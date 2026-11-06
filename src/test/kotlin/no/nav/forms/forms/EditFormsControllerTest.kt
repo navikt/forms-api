@@ -908,4 +908,25 @@ class EditFormsControllerTest : ApplicationTest(setupPublishedGlobalTranslations
 			}
 	}
 
+	@Test
+	fun formRevisions() {
+		val authToken = mockOAuth2Server.createMockToken()
+
+		val newForm = testFormsApi.createForm(FormsTestdata.newFormRequest(), authToken)
+			.assertSuccess()
+			.body
+
+		val updateRequest = FormsTestdata.updateFormRequest(
+			title = newForm.title!!,
+			components = newForm.components!!,
+			properties = mapOf("tema" to "AAP")
+		)
+		testFormsApi.updateForm(newForm.path!!, newForm.revision!!, updateRequest, authToken).assertSuccess()
+
+		val formRevisions = testFormsApi.getFormRevisions(newForm.path!!)
+			.assertSuccess()
+			.body
+
+		println(formRevisions)
+	}
 }

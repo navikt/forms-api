@@ -494,6 +494,17 @@ class TestFormsApi(
 		return FormsApiResponse(response.statusCode, body)
 	}
 
+	fun getFormRevisions(formPath: String): FormsApiResponse<List<String>> {
+		val response = restTemplate.exchange<String>(
+			"$formsBaseUrl/$formPath/revisions",
+			HttpMethod.GET,
+			HttpEntity(null, httpHeaders(null))
+		)
+
+		val body = parseListResponse(response, String::class.java)
+		return FormsApiResponse(response.statusCode, body)
+	}
+
 	private fun <T> parseListResponse(
 		response: ResponseEntity<String>,
 		clazz: Class<T>

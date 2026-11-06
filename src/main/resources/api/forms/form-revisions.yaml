@@ -1,0 +1,27 @@
+get:
+  summary: Henter skjemaets revisjoner
+  operationId: getFormRevisions
+  description: Henter alle revisjonene.
+  security: []
+  parameters:
+    - name: formPath
+      in: path
+      description: Skjemaets path
+      required: true
+      schema:
+        $ref: "./components.yaml#/components/schemas/FormPath"
+  responses:
+    200:
+      description: Returnerer revisjoner
+      content:
+        application/json:
+          schema:
+            $ref: "./components.yaml#/components/schemas/FormRevisions"
+    404:
+      description: Finner ikke skjema med gitt id
+      content:
+        application/json:
+          schema:
+            $ref: "../common/components.yaml#/components/schemas/ErrorResponseDto"
+  tags:
+    - edit-forms

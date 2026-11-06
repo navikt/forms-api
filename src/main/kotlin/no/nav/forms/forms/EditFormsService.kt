@@ -328,4 +328,15 @@ class EditFormsService(
 		logger.info("Form $formPath has been reset to published revision ${publishedFormRevision.revision}")
 		return getForm(formPath)
 	}
+
+	@Transactional
+	fun getFormRevisions(formPath: String): List<String> {
+		val revisions = formRevisionRepository.findAllByFormPath(formPath)
+
+		println("revisions: $revisions")
+		println("revision 1: ${revisions[0].properties.value}")
+		println("revision 2: ${revisions[1].properties.value}")
+
+		return revisions.map { it.id.toString() }
+	}
 }
