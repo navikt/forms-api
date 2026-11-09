@@ -20,4 +20,5 @@ interface FormPublicationRepository: JpaRepository<FormPublicationEntity, Long> 
 		status: no.nav.forms.forms.repository.entity.FormPublicationStatusDb,
 	): FormPublicationEntity?
 
+	fun findAllByFormPath(formPath: String): List<FormPublicationEntity>
 }

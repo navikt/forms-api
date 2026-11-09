@@ -4,6 +4,7 @@ import no.nav.forms.api.EditFormsApi
 import no.nav.forms.config.AzureAdConfig
 import no.nav.forms.model.FormCompactDto
 import no.nav.forms.model.FormDto
+import no.nav.forms.model.FormRevisionDto
 import no.nav.forms.model.LockFormRequest
 import no.nav.forms.model.NewFormRequest
 import no.nav.forms.model.UpdateFormRequest
@@ -106,4 +107,10 @@ class EditFormsController(
 		return ResponseEntity.ok(form)
 	}
 
+	@Unprotected
+	override fun getFormRevisions(formPath: String): ResponseEntity<List<FormRevisionDto>> {
+		val revisions = editFormsService.getFormRevisions(formPath)
+
+		return ResponseEntity.ok(revisions)
+	}
 }

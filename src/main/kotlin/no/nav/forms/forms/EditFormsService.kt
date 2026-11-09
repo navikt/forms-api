@@ -31,6 +31,8 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Propagation
 import java.time.LocalDateTime
 import java.time.OffsetDateTime
+import no.nav.forms.model.FormRevisionDto
+import no.nav.forms.utils.mapDateTime
 import kotlin.jvm.optionals.getOrElse
 
 @Service
@@ -327,5 +329,21 @@ class EditFormsService(
 
 		logger.info("Form $formPath has been reset to published revision ${publishedFormRevision.revision}")
 		return getForm(formPath)
+	}
+
+	@Transactional
+	fun getFormRevisions(formPath: String): List<FormRevisionDto> {
+		val revisions = formRevisionRepository.findAllByFormPath(formPath)
+		val publications = formPublicationRepository.findAllByFormPath(formPath)
+
+		val revisionDtos = revisions.map {
+			FormRevisionDto(
+				revision = it.revision,
+				createdAt = mapDateTime(it.createdAt),
+				publishedAt = publications.find { pub -> pub.formRevision.id == it.id }
+					?.let { found -> mapDateTime(found.createdAt) }
+			)
+		}
+		return revisionDtos
 	}
 }

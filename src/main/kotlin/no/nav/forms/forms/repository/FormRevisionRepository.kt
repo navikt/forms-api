@@ -11,4 +11,6 @@ interface FormRevisionRepository : JpaRepository<FormRevisionEntity, Long> {
 
 	fun deleteAllByFormPathAndRevisionGreaterThan(formPath: String, revision: Int): Int
 
+	fun findAllByFormPath(formPath: String): List<FormRevisionEntity>
+
 }

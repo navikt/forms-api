@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpStatus
 import kotlin.reflect.full.memberProperties
+import kotlin.test.assertContains
 
 class EditFormsControllerTest : ApplicationTest(setupPublishedGlobalTranslations = true) {
 
@@ -905,6 +906,34 @@ class EditFormsControllerTest : ApplicationTest(setupPublishedGlobalTranslations
 			.assertHttpStatus(HttpStatus.BAD_REQUEST)
 			.errorBody.let {
 				assertEquals("Form $formPath is not published", it.errorMessage)
+			}
+	}
+
+
+	@Test
+	fun testGetRevisions() {
+		val authToken = mockOAuth2Server.createMockToken()
+		val formPath = "nav654321"
+		val revision1 = testFormsApi.createForm(
+			FormsTestdata.newFormRequest(skjemanummer = formPath, title = "Revisjon 1"),
+			authToken,
+		).assertSuccess().body
+		val revision2 = testFormsApi.updateForm(
+			formPath,
+			revision1.revision!!,
+			FormsTestdata.updateFormRequest(title = "Revisjon 2"),
+			authToken,
+		).assertSuccess().body
+
+		testFormsApi.publishForm(formPath, revision2.revision!!, authToken, LanguageCode.entries)
+			.assertSuccess()
+
+		testFormsApi.getFormRevisions(formPath)
+			.assertSuccess()
+			.body.let {
+				assertEquals(it.size, 2)
+				assertNull(it.find { dto -> dto.revision == 1 }?.publishedAt)
+				assertNotNull(it.find { dto -> dto.revision == 2 }?.publishedAt)
 			}
 	}
 

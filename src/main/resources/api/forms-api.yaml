@@ -52,6 +52,9 @@ paths:
   /v1/forms/{formPath}/lock:
     $ref: "./forms/form-lock.yaml"
 
+  /v1/forms/{formPath}/revisions:
+    $ref: "./forms/form-revisions.yaml"
+
   /v1/form-publications:
     $ref: "./forms/form-publications.yaml"
 

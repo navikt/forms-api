@@ -238,3 +238,19 @@ components:
           $ref: "#/components/schemas/FormStatus"
         lock:
           $ref: "#/components/schemas/FormLock"
+    FormRevisionDto:
+      type: object
+      properties:
+        revision:
+          $ref: "#/components/schemas/FormRevision"
+        createdAt:
+          type: string
+          format: date-time
+          description: Dato og tid for når skjemaet først ble opprettet
+          example: 2021-10-03T12:00:00Z
+        publishedAt:
+          type: string
+          nullable: true
+          format: date-time
+          description: Dato og tid for når skjemaet sist ble publisert
+          example: 2021-12-03T14:10:00Z
