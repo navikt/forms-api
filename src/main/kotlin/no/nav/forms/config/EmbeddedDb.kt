@@ -1,24 +1,20 @@
 package no.nav.forms.config
 
-import org.postgresql.ds.PGSimpleDataSource
+import com.opentable.db.postgres.embedded.EmbeddedPostgres
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Profile
-import org.testcontainers.postgresql.PostgreSQLContainer
+import javax.sql.DataSource
 
 @Profile("test | local")
 @Configuration
 class EmbeddedDb {
 
-	@Bean(initMethod = "start", destroyMethod = "stop")
-	fun postgres(): PostgreSQLContainer = PostgreSQLContainer("postgres:18")
-		.withDatabaseName("forms-api-local")
+	private var embeddedPostgres: EmbeddedPostgres = EmbeddedPostgres.builder().setTag("18").start()
 
 	@Bean
-	fun embeddedPostgres(postgres: PostgreSQLContainer): PGSimpleDataSource = PGSimpleDataSource().apply {
-		setURL(postgres.jdbcUrl)
-		user = postgres.username
-		password = postgres.password
+	fun embeddedPostgres(): DataSource {
+		return embeddedPostgres.postgresDatabase
 	}
 
 }
