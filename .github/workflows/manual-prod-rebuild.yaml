@@ -1,0 +1,16 @@
+name: Rebuild and deploy to prod
+run-name: Rebuild and deploy to prod [${{ github.ref_name }}]
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+
+jobs:
+  build-and-deploy:
+    if: github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/build-and-deploy.yaml
+    permissions:
+      contents: read
+      id-token: write
+    secrets:
+      NAIS_WORKLOAD_IDENTITY_PROVIDER: ${{ secrets.NAIS_WORKLOAD_IDENTITY_PROVIDER }}
