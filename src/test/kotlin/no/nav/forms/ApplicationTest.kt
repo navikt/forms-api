@@ -15,6 +15,7 @@ import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.resttestclient.TestRestTemplate
 import org.springframework.boot.resttestclient.autoconfigure.AutoConfigureTestRestTemplate
 import org.springframework.test.context.ActiveProfiles
+import org.springframework.test.context.jdbc.Sql
 
 @ActiveProfiles("test")
 @SpringBootTest(
@@ -22,6 +23,7 @@ import org.springframework.test.context.ActiveProfiles
 )
 @AutoConfigureTestRestTemplate
 @EnableMockOAuth2Server
+@Sql("classpath:cleanup.sql", executionPhase = Sql.ExecutionPhase.AFTER_TEST_METHOD)
 abstract class ApplicationTest(val setupPublishedGlobalTranslations: Boolean = false) {
 
 	@Autowired
@@ -50,8 +52,6 @@ abstract class ApplicationTest(val setupPublishedGlobalTranslations: Boolean = f
 
 	@BeforeEach
 	fun setup() {
-		flyway.clean()
-		flyway.migrate()
 		storage.list(staticPdfConfig.bucketName).iterateAll().forEach {
 			storage.delete(it.blobId)
 		}
