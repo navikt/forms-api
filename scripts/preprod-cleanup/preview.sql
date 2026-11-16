@@ -23,8 +23,6 @@ DROP TABLE IF EXISTS pg_temp.cleanup_raw_inputs;
 DROP TABLE IF EXISTS pg_temp.cleanup_inputs;
 DROP TABLE IF EXISTS pg_temp.cleanup_current_forms;
 DROP TABLE IF EXISTS pg_temp.cleanup_approved_forms;
-DROP TABLE IF EXISTS pg_temp.cleanup_current_fingerprints;
-DROP TABLE IF EXISTS pg_temp.cleanup_approved_fingerprints;
 DROP TABLE IF EXISTS pg_temp.cleanup_candidate_attributes;
 
 CREATE TEMP TABLE cleanup_ready (ready boolean NOT NULL CHECK (ready)) ON COMMIT PRESERVE ROWS;
@@ -41,12 +39,6 @@ CREATE TEMP TABLE cleanup_current_forms (
 ) ON COMMIT PRESERVE ROWS;
 CREATE TEMP TABLE cleanup_approved_forms
     (LIKE pg_temp.cleanup_current_forms INCLUDING ALL) ON COMMIT PRESERVE ROWS;
-CREATE TEMP TABLE cleanup_current_fingerprints (
-    source_table text NOT NULL, row_key text NOT NULL, fingerprint text NOT NULL,
-    PRIMARY KEY (source_table, row_key)
-) ON COMMIT PRESERVE ROWS;
-CREATE TEMP TABLE cleanup_approved_fingerprints
-    (LIKE pg_temp.cleanup_current_fingerprints INCLUDING ALL) ON COMMIT PRESERVE ROWS;
 CREATE TEMP TABLE cleanup_candidate_attributes (id bigint PRIMARY KEY) ON COMMIT PRESERVE ROWS;
 
 -- 3. Validate and freeze the keep rules for this preview.
@@ -93,15 +85,21 @@ SET LOCAL statement_timeout = '120s';
 SET LOCAL transaction_timeout = '180s';
 \ir capture.sql
 INSERT INTO pg_temp.cleanup_approved_forms SELECT * FROM pg_temp.cleanup_current_forms;
-INSERT INTO pg_temp.cleanup_approved_fingerprints SELECT * FROM pg_temp.cleanup_current_fingerprints;
+SELECT 'form' AS source_table, count(*) AS rows FROM public.form
+UNION ALL SELECT 'form_attribute', count(*) FROM public.form_attribute
+UNION ALL SELECT 'form_revision', count(*) FROM public.form_revision
+UNION ALL SELECT 'form_translation', count(*) FROM public.form_translation
+UNION ALL SELECT 'form_translation_revision', count(*) FROM public.form_translation_revision
+UNION ALL SELECT 'published_form_translation', count(*) FROM public.published_form_translation
+UNION ALL SELECT 'published_form_translation_revision', count(*) FROM public.published_form_translation_revision
+UNION ALL SELECT 'form_publication', count(*) FROM public.form_publication
+ORDER BY source_table;
 INSERT INTO pg_temp.cleanup_ready VALUES (true);
 COMMIT;
 
--- 5. Show the rules, row counts, and complete keep/delete lists for review.
+-- 5. Show the rules and complete keep/delete lists for review.
 \echo 'Preview only. Execution permanently affects BOTH preprod and preprod-alt.'
 SELECT keep_paths, keep_test_forms, keep_locked_forms FROM pg_temp.cleanup_inputs;
-SELECT source_table, count(*) AS rows
-FROM pg_temp.cleanup_approved_fingerprints GROUP BY source_table ORDER BY source_table;
 SELECT 'DELETE' AS action, count(*) AS forms
 FROM pg_temp.cleanup_approved_forms WHERE NOT keep
 UNION ALL

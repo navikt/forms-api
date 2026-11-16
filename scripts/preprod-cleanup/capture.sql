@@ -1,7 +1,6 @@
 -- Shared by preview and execute. Only session-local tables are modified.
 -- 1. Clear the previous capture and reject uncertain form data.
 DELETE FROM pg_temp.cleanup_current_forms;
-DELETE FROM pg_temp.cleanup_current_fingerprints;
 
 DO $validate$
 BEGIN
@@ -50,25 +49,3 @@ JOIN LATERAL (
 ) latest ON true
 JOIN public.form_attribute a ON a.id = latest.properties_id
 CROSS JOIN pg_temp.cleanup_inputs i;
-
--- 3. Fingerprint source rows to detect changes before deletion.
--- Full-row hashes are private session state, never preview output. Row identities
--- and all protection, revision, translation, attribute and publication data count.
-INSERT INTO pg_temp.cleanup_current_fingerprints (source_table, row_key, fingerprint)
-SELECT 'form', s.id::text, pg_catalog.md5(pg_catalog.to_jsonb(s)::text) FROM public.form s
-UNION ALL
-SELECT 'form_attribute', s.id::text, pg_catalog.md5(pg_catalog.to_jsonb(s)::text) FROM public.form_attribute s
-UNION ALL
-SELECT 'form_revision', s.id::text, pg_catalog.md5(pg_catalog.to_jsonb(s)::text) FROM public.form_revision s
-UNION ALL
-SELECT 'form_translation', s.id::text, pg_catalog.md5(pg_catalog.to_jsonb(s)::text) FROM public.form_translation s
-UNION ALL
-SELECT 'form_translation_revision', s.id::text, pg_catalog.md5(pg_catalog.to_jsonb(s)::text) FROM public.form_translation_revision s
-UNION ALL
-SELECT 'published_form_translation', s.id::text, pg_catalog.md5(pg_catalog.to_jsonb(s)::text) FROM public.published_form_translation s
-UNION ALL
-SELECT 'published_form_translation_revision',
-    s.published_form_translation_id::text || '/' || s.form_translation_revision_id::text,
-    pg_catalog.md5(pg_catalog.to_jsonb(s)::text) FROM public.published_form_translation_revision s
-UNION ALL
-SELECT 'form_publication', s.id::text, pg_catalog.md5(pg_catalog.to_jsonb(s)::text) FROM public.form_publication s;

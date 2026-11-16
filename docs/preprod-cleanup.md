@@ -40,7 +40,8 @@ Skriv `DELETE preprod and preprod-alt` når skriptet ber om bekreftelse.
 - `cleanup_database` angir forventet navn, ikke en ny tilkobling. Standard er `forms-api-preprod-db`.
 - `forms-api-db` avvises alltid, også som eksplisitt forventet navn. Oppdater sperren ved navneendring i prod.
 - Navnesperren beviser ikke GCP-prosjekt eller cluster. Bruk den faste dev-kommandoen og dev-tilgang, også ved annet forventet databasenavn.
-- Skrivelåser under gjennomføring. Endrede data eller behold-regler krever ny preview.
+- Skrivelåser under gjennomføring. Endret skjemaliste, siste revisjon eller behold-/slettestatus stopper kjøringen og krever ny preview. Behold-reglene fryses ved preview.
+- Innhold og tilhørende historikk sammenlignes ikke med preview. Data for valgte skjemaer slettes slik de er ved gjennomføring, også oversettelser og publiseringer lagt til etter preview.
 - Kjør `ROLLBACK;` ved SQL-feil, og ta ny preview.
 - Ved forbindelsesbrudd under commit er utfallet ukjent. Kontroller databasen før nytt forsøk.
 - Globale oversettelser, mottakere, GCS-filer og filer i publiseringsrepoet blir liggende.

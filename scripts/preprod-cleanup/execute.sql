@@ -44,26 +44,20 @@ LOCK TABLE public.published_form_translation IN SHARE ROW EXCLUSIVE MODE;
 LOCK TABLE public.published_form_translation_revision IN SHARE ROW EXCLUSIVE MODE;
 LOCK TABLE public.form_publication IN SHARE ROW EXCLUSIVE MODE;
 
--- 4. Rebuild the plan under locks. Abort if anything changed after preview.
+-- 4. Rebuild the plan under locks. Abort if the form list or classification changed.
 \echo 'Refreshing temporary plan. DELETE/INSERT counts below are temporary rows, not application deletions.'
 \ir capture.sql
 \echo 'Checking refreshed plan against approved preview.'
 DO $compare$
 BEGIN
     IF EXISTS (
-        (SELECT * FROM pg_temp.cleanup_current_fingerprints
-         EXCEPT SELECT * FROM pg_temp.cleanup_approved_fingerprints)
-        UNION ALL
-        (SELECT * FROM pg_temp.cleanup_approved_fingerprints
-         EXCEPT SELECT * FROM pg_temp.cleanup_current_fingerprints)
-    ) OR EXISTS (
         (SELECT * FROM pg_temp.cleanup_current_forms
          EXCEPT SELECT * FROM pg_temp.cleanup_approved_forms)
         UNION ALL
         (SELECT * FROM pg_temp.cleanup_approved_forms
          EXCEPT SELECT * FROM pg_temp.cleanup_current_forms)
     ) THEN
-        RAISE EXCEPTION 'Source data changed since preview; ROLLBACK and run preview.sql again.';
+        RAISE EXCEPTION 'Form list or classification changed since preview; ROLLBACK and run preview.sql again.';
     END IF;
 END
 $compare$;
