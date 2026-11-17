@@ -20,11 +20,19 @@ import org.springframework.web.bind.MissingRequestHeaderException
 import org.springframework.web.bind.annotation.ControllerAdvice
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.method.annotation.HandlerMethodValidationException
+import org.springframework.web.servlet.resource.NoResourceFoundException
 
 @ControllerAdvice
 class RestExceptionHandler {
 
 	val logger: Logger = LoggerFactory.getLogger(javaClass)
+
+	@ExceptionHandler(NoResourceFoundException::class)
+	fun handleNoResourceFound(): ResponseEntity<ErrorResponseDto> {
+		val status = HttpStatus.NOT_FOUND
+		logger.debug("Static resource not found")
+		return ResponseEntity.status(status).body(ErrorResponseDto(status.reasonPhrase, getCorrelationId()))
+	}
 
 	@ExceptionHandler
 	fun handleResourceNotFound(exception: ResourceNotFoundException): ResponseEntity<ErrorResponseDto> {
