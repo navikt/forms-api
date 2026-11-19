@@ -1,0 +1,13 @@
+truncate published_global_translation_revision cascade;
+truncate published_form_translation_revision cascade;
+truncate form_revision cascade;
+truncate form_publication cascade;
+truncate form_attribute cascade;
+truncate form_translation cascade;
+truncate form_translation_revision cascade;
+truncate global_translation cascade;
+truncate global_translation_revision cascade;
+truncate published_form_translation cascade;
+truncate published_global_translation cascade;
+truncate recipient cascade;
+truncate form cascade;
