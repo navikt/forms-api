@@ -12,7 +12,7 @@ services:
       - db:/var/lib/postgresql
 
   cloud-storage:
-    image: fsouza/fake-gcs-server
+    image: fsouza/fake-gcs-server:1
     container_name: forms-api-gcs
     restart: always
     entrypoint: [ "/bin/fake-gcs-server", "-data", "/data", "-scheme", "http", "-external-url", "http://localhost:5443" ]

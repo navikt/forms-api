@@ -8,3 +8,4 @@
 
 ## Database Schema Changes
 - When changing Flyway migrations, persisted enums, JPA converters, views, or DB-facing entities, use the `refresh-database-schema-docs` skill and regenerate `docs/database-schema.md`.
+- When changing the database schema, check whether `scripts/preprod-cleanup/*.sql` also needs updating.

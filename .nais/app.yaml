@@ -18,12 +18,23 @@ spec:
       memory: 4096Mi
     requests:
       memory: 2048Mi
+  startup:
+    path: /internal/health/isReady
+    initialDelay: 0
+    periodSeconds: 5
+    failureThreshold: 36
+    timeout: 2
   liveness:
     path: /internal/health/isAlive
-    initialDelay: 30
+    initialDelay: 0
+    periodSeconds: 10
+    failureThreshold: 3
+    timeout: 2
   readiness:
     path: /internal/health/isReady
-    initialDelay: 30
+    initialDelay: 0
+    periodSeconds: 5
+    timeout: 2
   prometheus:
     enabled: true
     path: /actuator/prometheus
