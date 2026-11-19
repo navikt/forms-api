@@ -5,6 +5,9 @@ on:
   schedule:
     - cron: '0 6 * * 1'
       timezone: Europe/Oslo
+concurrency:
+  group: forms-api-deploy-${{ github.ref }}
+  cancel-in-progress: false
 permissions:
   contents: read
 

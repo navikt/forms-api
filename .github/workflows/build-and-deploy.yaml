@@ -44,9 +44,6 @@ jobs:
 
   deploy-to-prod:
     name: Deploy to prod
-    concurrency:
-      group: forms-api-prod
-      cancel-in-progress: false
     needs: [build-and-push]
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
