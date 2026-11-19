@@ -2,6 +2,12 @@ name: Rebuild and deploy to prod
 run-name: Rebuild and deploy to prod [${{ github.ref_name }}]
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '0 6 * * 1'
+      timezone: Europe/Oslo
+concurrency:
+  group: forms-api-deploy-${{ github.ref }}
+  cancel-in-progress: false
 permissions:
   contents: read
 

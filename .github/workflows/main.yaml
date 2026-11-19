@@ -6,6 +6,9 @@ on:
       - '**/**.md'
       - '.nais/alerts/**'
       - '.github/workflows/alerts-deploy.yaml'
+concurrency:
+  group: forms-api-deploy-${{ github.ref }}
+  cancel-in-progress: false
 permissions:
   contents: read
 
